@@ -44,7 +44,7 @@ def precio_capturado(d, i3, rango):
     tecs = list(pbf.index[:13])
     bruto = i3[i3["magnitud"] == "energia"].groupby(["tecnologia", "mercado"])["valor"].apply(lambda x: x.abs().sum())
     fig = d.diapositiva("Precio capturado por tecnología y mercado",
-                        "Lo que cada tecnología cobra de media en cada mercado. Sale del I3, que llega a los tres días: hace falta la energía y el ingreso "
+                        "Lo que cada tecnología cobra de media en cada mercado. Sale del I3, que llega a los cuatro días: hace falta la energía y el ingreso "
                         "mercado a mercado, y el panel en vivo no lo da. Donde la compra y la venta casi se cancelan no se muestra precio.",
                         FUENTE_I3.format(rango=rango))
     ax = d.eje(fig, caja=[0.2, 0.19, 0.74, 0.53])
