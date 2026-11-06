@@ -1,0 +1,52 @@
+# Reglas de clasificación del I3 de REE. Se evalúan por PALABRAS CLAVE (sin acentos,
+# minúsculas) sobre la descripción de la hoja + las etiquetas de cada fila.
+# El ORDEN importa: gana la primera coincidencia. Si tras el primer diagnóstico
+# (python -m src.i3 --diagnostico AAAA-MM-DD) alguna fila queda sin clasificar,
+# se arregla aquí sin tocar código.
+
+mercados:
+  Bilaterales:        ["bilateral"]
+  PBF:                ["pbf", "programa base de funcionamiento", "programa diario base"]
+  PDVP:               ["pdvp", "programa diario viable provisional"]
+  PHF:                ["phf", "programa horario final"]
+  P48:                ["p48"]
+  Continuo:           ["intradiario continuo", "mercado continuo", "continuo"]
+  Intradiario 1:      ["intradiario 1", "sesion 1", "ida1", "ida 1", "primera subasta"]
+  Intradiario 2:      ["intradiario 2", "sesion 2", "ida2", "ida 2", "segunda subasta"]
+  Intradiario 3:      ["intradiario 3", "sesion 3", "ida3", "ida 3", "tercera subasta"]
+  Restricciones TR:   ["tiempo real", "restricciones tecnicas tr", "restricciones en tiempo real"]
+  Restricciones MD:   ["restricciones tecnicas", "restriccion"]
+  Terciaria:          ["terciaria", "regulacion terciaria", "energia de balance"]
+  Diario:             ["mercado diario", "diario"]
+
+magnitudes:
+  ingreso: ["ingreso", "importe", "euros", "€"]
+  energia: ["energia", "mwh", "programa", "volumen"]
+
+fases:
+  "MD · Fase I":  ["fase i ", "fase 1", "fase i)", "fase i"]
+  "MD · Fase II": ["fase ii", "fase 2", "reequilibrio"]
+  "Tiempo real":  ["tiempo real"]
+
+tipologias: [COT, SOT, RSI, RTD, SCA, SCB, EST, ASE, PEV, CEX, SUT]
+
+tecnologias:
+  Eólica:                         ["eolica"]
+  Solar fotovoltaica:             ["solar fotovoltaica", "fotovoltaica"]
+  Solar térmica:                  ["solar termica", "termosolar"]
+  Nuclear:                        ["nuclear"]
+  Hidráulica:                     ["hidraulica"]
+  Ciclo combinado:                ["ciclo combinado"]
+  Carbón:                         ["carbon"]
+  Cogeneración:                   ["cogeneracion"]
+  Turbinación bombeo:             ["turbinacion bombeo", "turbinacion de bombeo"]
+  Consumo bombeo:                 ["consumo bombeo", "consumo de bombeo"]
+  Almacenamiento generación:      ["almacenamiento generacion"]
+  Almacenamiento consumo:         ["almacenamiento consumo"]
+  Fuel-gas:                       ["fuel-gas", "fuel gas"]
+  Turbina vapor, gas y fuel:      ["turbina de vapor", "turbina vapor"]
+  Otras renovables:               ["otras renovables"]
+  Residuos no renovables:         ["residuos no renovables"]
+  Híbrida renovable:              ["hibrida renovable"]
+  Híbrida renovable-almacenamiento: ["hibrida renovable-almacenamiento", "renovable-almacenamiento"]
+  Híbrida renovable-térmica no renovable: ["hibrida renovable-termica"]
