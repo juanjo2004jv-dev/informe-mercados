@@ -12,7 +12,7 @@ from matplotlib.ticker import FuncFormatter
 from matplotlib.colors import LinearSegmentedColormap, Normalize, TwoSlopeNorm
 from matplotlib.patches import Circle, Ellipse, Rectangle
 
-from .informe import _eje_semana
+from .informe import _eje_semana, es_web
 from .narrativa import etiqueta_dia, n, rango, redactar
 
 W, H = 13.333, 7.5
@@ -73,7 +73,7 @@ class Deck:
 
     def guardar(self, fig):
         self.pdf.savefig(fig, facecolor=fig.get_facecolor())
-        if self.img_dir is not None:
+        if self.img_dir is not None and es_web(getattr(fig, "_titulo", None)):
             num = getattr(fig, "_n", self.n)
             nombre = f"{num:02d}.webp"
             try:
