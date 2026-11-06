@@ -47,6 +47,11 @@ th,td{padding:7px 12px 7px 0;border-bottom:1px solid var(--rule);text-align:righ
 th:first-child,td:first-child{text-align:left}
 th{font-weight:600;color:var(--muted);font-size:13px}
 .tabla-scroll{overflow-x:auto}
+.pdfbtn{display:inline-block;background:var(--teal);color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600}
+.cta{margin:-22px 0 40px}
+figure.pag{margin:0 0 26px}
+figure.pag img{width:100%;height:auto;display:block;border:1px solid var(--rule);border-radius:4px;background:#fff}
+figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 @media (max-width:900px){
   .wrap{grid-template-columns:1fr;padding:0 18px}
   .rail{position:static;height:auto;padding:28px 0 8px}
@@ -77,10 +82,12 @@ th{font-weight:600;color:var(--muted);font-size:13px}
     <a href="#captura">Precio capturado</a>
     <a href="#demanda">Demanda</a>
     <a href="#tendencia">Tendencia</a>
+    
+    <a href="2026-S44.pdf">PDF completo</a>
     <a href="#metodo">Datos y método</a>
     <a href="../archivo.html">Semanas anteriores</a>
   </nav>
-  <div class="pie">Generado el 06/11/2026 21:11.<br>Fuente: ESIOS (REE) y OMIE.</div>
+  <div class="pie">Generado el 06/11/2026 21:32.<br>Fuente: ESIOS (REE) y OMIE.</div>
 </aside>
 
 <main>
@@ -90,10 +97,13 @@ th{font-weight:600;color:var(--muted);font-size:13px}
   <div><dt>Precio medio</dt><dd>207,0 <span class="sub">€/MWh</span></dd>
     <span class="sub pos">+35,3 % vs semana anterior</span></div>
   <div><dt>Rango de precios</dt><dd>0 a 325</dd><span class="sub">€/MWh, por cuarto de hora</span></div>
+  <div><dt>Spread diario medio</dt><dd>225 <span class="sub">€/MWh</span></dd><span class="sub">máx. − mín. del día</span></div>
   <div><dt>Horas a precio ≤ 0</dt><dd>5,8 <span class="sub">h</span></dd></div>
   <div><dt>Techo de arbitraje</dt><dd>715 <span class="sub">€/MW·día</span></dd><span class="sub">batería 4 h</span></div>
   <div><dt>Solar capturó</dt><dd>56 <span class="sub">% del precio medio</span></dd></div>
 </dl>
+
+<p class="cta"><a class="pdfbtn" href="2026-S44.pdf">Descargar el informe completo en PDF</a> <span class="sub" style="color:var(--muted);font-size:13px">incluye I3 por tecnología, restricciones técnicas y operación reforzada</span></p>
 
 <section id="calor">
   <h2>El precio medio cayó a 81,2 €/MWh a las 12:30 y subió a 299,2 €/MWh a las 18:45</h2>
@@ -152,9 +162,11 @@ th{font-weight:600;color:var(--muted);font-size:13px}
 
 <section id="tendencia">
   <h2>El techo de arbitraje sube respecto a las semanas anteriores</h2>
-  <p>Cinco semanas seguidas, la actual incluida. El precio medio y el techo de arbitraje no siempre se mueven juntos: lo que paga la batería es la forma del día, no su nivel.</p>
+  <p>Evolución de las últimas semanas. El precio medio y el techo de arbitraje no siempre se mueven juntos: lo que paga la batería es la forma del día, no su nivel.</p>
   <div class="graf"><div id="g_tend"></div></div>
 </section>
+
+
 
 <section id="metodo">
   <h2>Datos y método</h2>
@@ -165,7 +177,7 @@ th{font-weight:600;color:var(--muted);font-size:13px}
     </tbody></table></div>
   
   <p class="nota" style="margin-top:14px">Los precios son cuartohorarios (el mercado diario es de 15 minutos desde el 1 de octubre de 2025). Cuando una serie llega con resolución horaria, su valor se repite en los cuatro cuartos. Las horas son locales; los días de cambio de hora tienen 92 o 100 cuartos. Los datos son los publicados en el momento de generar el informe, y ESIOS puede revisarlos después.</p>
-  <p class="nota"><strong>Pendiente de añadir:</strong> restricciones técnicas y liquidaciones por tecnología (ficheros I3 de REE), que se publican con unos tres días de retraso.</p>
+  <p class="nota">Las páginas de liquidación por tecnología y restricciones técnicas salen del I3 de REE, que se publica con unos cuatro días de retraso; el informe completo en PDF las incluye todas.</p>
 </section>
 </main>
 </div>
