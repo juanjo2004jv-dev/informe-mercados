@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mercado eléctrico · semana {{ semana_num }} de {{ anio }}</title>
+<style>
+:root{
+  --bg:#eef1f3; --panel:#e4e9ec; --ink:#13212c; --muted:#556772; --rule:#c8d2d8;
+  --teal:#1f7a8c; --amber:#b9751a; --red:#b23a48;
+  --font-body: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-head: "Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1a22; --panel:#16252f; --ink:#e4ebf0; --muted:#93a4b0; --rule:#26363f; --teal:#5cc0d3; --amber:#e3a550; --red:#e0707d; }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--font-body);font-variant-numeric:tabular-nums}
+a{color:var(--teal)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.wrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:0 56px;max-width:1280px;margin:0 auto;padding:0 28px}
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:44px 0 32px;display:flex;flex-direction:column;gap:22px;overflow:auto}
+.rail h1{font:600 30px/1.15 var(--font-head);margin:0;letter-spacing:-.01em}
+.rail .rango{color:var(--muted);margin:4px 0 0}
+.rail .veredicto{font:400 17px/1.5 var(--font-head);margin:0;padding-top:18px;border-top:1px solid var(--rule)}
+.rail nav{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.rail nav a{color:var(--muted);text-decoration:none}
+.rail nav a:hover{color:var(--ink)}
+.rail .pie{margin-top:auto;color:var(--muted);font-size:12.5px}
+main{padding:44px 0 80px;min-width:0}
+.aviso{background:var(--panel);border-left:3px solid var(--amber);padding:10px 14px;margin:0 0 28px;font-size:14px}
+.cinta{display:flex;flex-wrap:wrap;gap:18px 0;margin:0 0 44px;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
+.cinta div{flex:1 1 150px;padding:14px 18px 14px 0;margin-right:18px;border-right:1px solid var(--rule)}
+.cinta div:last-child{border-right:0}
+.cinta dt{font-size:13px;color:var(--muted);margin:0}
+.cinta dd{margin:2px 0 0;font:600 26px/1.15 var(--font-head)}
+.cinta .sub{font:400 13px var(--font-body);color:var(--muted)}
+.pos{color:var(--teal)} .neg{color:var(--red)}
+section{margin:0 0 64px}
+section h2{font:600 24px/1.25 var(--font-head);margin:0 0 8px;max-width:30em;letter-spacing:-.005em}
+section p{max-width:62ch;margin:0 0 18px;color:var(--ink)}
+section p.nota{color:var(--muted);font-size:14px}
+.graf{margin:10px 0 0;border-top:1px solid var(--rule);padding-top:8px}
+table{border-collapse:collapse;width:100%;max-width:760px;font-size:14.5px}
+th,td{padding:7px 12px 7px 0;border-bottom:1px solid var(--rule);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:13px}
+.tabla-scroll{overflow-x:auto}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr;padding:0 18px}
+  .rail{position:static;height:auto;padding:28px 0 8px}
+  .rail nav{flex-direction:row;flex-wrap:wrap;gap:6px 16px}
+  .rail .pie{display:none}
+  main{padding-top:12px}
+  .cinta div{flex-basis:45%}
+}
+@media print{
+  .rail{position:static;height:auto} .rail nav{display:none}
+  .wrap{display:block} section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside class="rail">
+  <div>
+    <h1>Mercado eléctrico, semana {{ semana_num }}</h1>
+    <p class="rango">{{ rango }}</p>
+  </div>
+  <p class="veredicto">{{ t.titular }}</p>
+  <nav aria-label="Secciones">
+    <a href="#calor">Mapa de precios</a>
+    <a href="#bateria">Arbitraje de baterías</a>
+    <a href="#perfil">Forma del día</a>
+    {% if res.extras %}<a href="#mercados">Otros mercados</a>{% endif %}
+    {% if res.captura %}<a href="#captura">Precio capturado</a>{% endif %}
+    {% if res.demanda %}<a href="#demanda">Demanda</a>{% endif %}
+    <a href="#tendencia">Tendencia</a>
+    <a href="#metodo">Datos y método</a>
+    <a href="{{ base }}archivo.html">Semanas anteriores</a>
+  </nav>
+  <div class="pie">Generado el {{ generado }}.<br>Fuente: ESIOS (REE) y OMIE.</div>
+</aside>
+
+<main>
+{% if demo %}<p class="aviso"><strong>Datos sintéticos de prueba.</strong> Este informe sirve para comprobar el diseño; las cifras no son reales.</p>{% endif %}
+
+<dl class="cinta">
+  <div><dt>Precio medio</dt><dd>{{ res.precio_medio|n }} <span class="sub">€/MWh</span></dd>
+    <span class="sub {{ 'neg' if res.var_prev < 0 else 'pos' }}">{{ res.var_prev|n(1,True) }} % vs semana anterior</span></div>
+  <div><dt>Rango de precios</dt><dd>{{ res.precio_min|n(0) }} a {{ res.precio_max|n(0) }}</dd><span class="sub">€/MWh, por cuarto de hora</span></div>
+  <div><dt>Horas a precio ≤ 0</dt><dd>{{ res.horas_neg|n(1) }} <span class="sub">h</span></dd></div>
+  <div><dt>Techo de arbitraje</dt><dd>{{ res.bess_dia|n(0) }} <span class="sub">€/MW·día</span></dd><span class="sub">batería {{ bat.horas|int }} h</span></div>
+  {% if res.captura.gen_solar_fv %}<div><dt>Solar capturó</dt><dd>{{ res.captura.gen_solar_fv.ratio|n(0) }} <span class="sub">% del precio medio</span></dd></div>{% endif %}
+</dl>
+
+<section id="calor">
+  <h2>{{ t.h_calor }}</h2>
+  <p>{{ t.p_calor }}</p>
+  <div class="graf"><div id="g_calor"></div></div>
+  <p class="nota">Los puntos oscuros marcan cuándo cargaría una batería óptima y los blancos cuándo descargaría (cálculo en la sección siguiente).</p>
+</section>
+
+<section id="bateria">
+  <h2>{{ t.h_bess }}</h2>
+  <p>{{ t.p_bess }}</p>
+  <div class="graf"><div id="g_bess"></div></div>
+  <p class="nota">Techo teórico para 1 MW / {{ bat.horas|int }} MWh, rendimiento de ida y vuelta del {{ (bat.rendimiento_ida_vuelta*100)|int }} %, tope de {{ bat.ciclos_max_dia|n(1) }} ciclos al día y coste de ciclado de {{ bat.coste_ciclado_eur_mwh|n(0) }} €/MWh, solo con precios del mercado diario y previsión perfecta, empezando y terminando cada día vacía. No incluye aFRR, mFRR ni intradiarios, y no es un ingreso garantizado: es la cota máxima del arbitraje en este mercado.</p>
+</section>
+
+<section id="perfil">
+  <h2>Así fue el día tipo frente a las cuatro semanas anteriores</h2>
+  <p>La diferencia entre la curva de esta semana y la de referencia indica si el valle del mediodía se profundiza o la punta de la tarde se estrecha.</p>
+  <div class="graf"><div id="g_perfil"></div></div>
+</section>
+
+{% if res.extras %}
+<section id="mercados">
+  <h2>Cómo se desvían el resto de mercados respecto al diario</h2>
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Mercado</th><th>Media €/MWh</th><th>Mín</th><th>Máx</th><th>Dif. vs diario</th></tr></thead>
+    <tbody>
+    <tr><td>Mercado diario</td><td>{{ res.precio_medio|n }}</td><td>{{ res.precio_min|n }}</td><td>{{ res.precio_max|n }}</td><td>—</td></tr>
+    {% for e in res.extras %}<tr><td>{{ e.nombre }}</td><td>{{ e.media|n }}</td><td>{{ e.min|n }}</td><td>{{ e.max|n }}</td><td>{{ e.dif|n(1,True) }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  <div class="graf"><div id="g_merc"></div></div>
+</section>
+{% endif %}
+
+{% if res.captura %}
+<section id="captura">
+  <h2>{{ t.h_solar if t.h_solar else 'Precio capturado por tecnología' }}</h2>
+  <p>{{ t.p_solar }}</p>
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Tecnología</th><th>Precio capturado €/MWh</th><th>% del precio medio</th><th>Energía GWh</th></tr></thead>
+    <tbody>
+    {% if res.captura.gen_solar_fv %}<tr><td>Solar fotovoltaica</td><td>{{ res.captura.gen_solar_fv.precio|n }}</td><td>{{ res.captura.gen_solar_fv.ratio|n(0) }} %</td><td>{{ res.captura.gen_solar_fv.energia_gwh|n(1) }}</td></tr>{% endif %}
+    {% if res.captura.gen_eolica %}<tr><td>Eólica</td><td>{{ res.captura.gen_eolica.precio|n }}</td><td>{{ res.captura.gen_eolica.ratio|n(0) }} %</td><td>{{ res.captura.gen_eolica.energia_gwh|n(1) }}</td></tr>{% endif %}
+    </tbody></table></div>
+  <p class="nota" style="margin-top:14px">Calculado con generación en tiempo real de ESIOS y precio del mercado diario. Es una aproximación: no es el ingreso liquidado (I3).</p>
+</section>
+{% endif %}
+
+{% if res.demanda %}
+<section id="demanda">
+  <h2>{{ t.h_dem }}</h2>
+  <p>{{ t.p_dem }}</p>
+  <div class="graf"><div id="g_dem"></div></div>
+</section>
+{% endif %}
+
+<section id="tendencia">
+  <h2>{{ t.h_tend }}</h2>
+  <p>Cinco semanas seguidas, la actual incluida. El precio medio y el techo de arbitraje no siempre se mueven juntos: lo que paga la batería es la forma del día, no su nivel.</p>
+  <div class="graf"><div id="g_tend"></div></div>
+</section>
+
+<section id="metodo">
+  <h2>Datos y método</h2>
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Serie</th><th>Indicador ESIOS</th><th>Nombre en ESIOS</th><th>Cobertura</th></tr></thead>
+    <tbody>
+    {% for k, c in res.cobertura.items() %}<tr><td>{{ meta.get(k, {}).get('nombre', k) }}</td><td>{{ meta.get(k, {}).get('id', '—') }}</td><td style="text-align:left">{{ meta.get(k, {}).get('api', '—') }}</td><td>{{ (c*100)|n(1) }} %</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% for k, m in meta.items() %}{% if m.get('aviso') %}<p class="nota">Aviso en {{ m.nombre }}: {{ m.aviso }}</p>{% endif %}{% endfor %}
+  <p class="nota" style="margin-top:14px">Los precios son cuartohorarios (el mercado diario es de 15 minutos desde el 1 de octubre de 2025). Cuando una serie llega con resolución horaria, su valor se repite en los cuatro cuartos. Las horas son locales; los días de cambio de hora tienen 92 o 100 cuartos. Los datos son los publicados en el momento de generar el informe, y ESIOS puede revisarlos después.</p>
+  <p class="nota"><strong>Pendiente de añadir:</strong> restricciones técnicas y liquidaciones por tecnología (ficheros I3 de REE), que se publican con unos tres días de retraso.</p>
+</section>
+</main>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script>
+const CHARTS = {{ charts|tojson }};
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function dibujar(){
+  const tinta = css('--ink'), regla = css('--rule'), fuente = css('--font-body');
+  for (const id of Object.keys(CHARTS)){
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const spec = CHARTS[id];
+    const L = Object.assign({}, spec.layout);
+    L.paper_bgcolor = 'rgba(0,0,0,0)';
+    L.plot_bgcolor = 'rgba(0,0,0,0)';
+    L.font = { family: fuente, color: tinta, size: 12 };
+    for (const ax of ['xaxis','yaxis','yaxis2']){
+      if (L[ax]){
+        L[ax] = Object.assign({ gridcolor: regla, zerolinecolor: regla, linecolor: regla }, L[ax]);
+      }
+    }
+    if (!L.xaxis) L.xaxis = { gridcolor: regla, linecolor: regla };
+    if (!L.yaxis) L.yaxis = { gridcolor: regla, zerolinecolor: regla, linecolor: regla };
+    Plotly.react(el, spec.data, L, { displayModeBar: false, responsive: true });
+  }
+}
+dibujar();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', dibujar);
+</script>
+</body>
+</html>
