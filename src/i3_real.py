@@ -60,6 +60,8 @@ class Tec:
 
     def __call__(self, nombre):
         s = sin(nombre)
+        if s in ("fuel-gas", "fuel gas"):
+            return "Turbina vapor, gas y fuel"
         if s in self.exacto:
             return self.exacto[s]
         for k, t in self.kw:
@@ -244,6 +246,26 @@ def procesar(hojas, dia, precios=None):
     if len(df):
         df = df.groupby(["fecha", "mercado", "tecnologia", "magnitud", "fase", "tipologia", "sentido"], as_index=False)["valor"].sum()
     return df, aviso
+
+
+def info_sesiones(hojas):
+    """Diagnóstico: periodos cubiertos y energía movida por cada PHF-k de la hoja 13."""
+    res = []
+    prev = None
+    ses = {}
+    for lab, v in leer(hojas.get("I3DIA13", [])):
+        m = re.match(r"PHF-?(\d+)", lab.get("Programa", ""))
+        if m:
+            ses.setdefault(int(m.group(1)), []).append((lab.get("Concepto", ""), v))
+    for k in sorted(ses):
+        cub = max(int(np.sum(~np.isnan(v))) for _, v in ses[k])
+        tot = sum(float(np.nansum(v)) for c, v in ses[k] if tec_nombre(c))
+        res.append(f"PHF-{k}: periodos cubiertos {cub}, suma generación {tot:.0f}")
+    return "\n".join(res)
+
+
+def tec_nombre(c):
+    return Tec(cargar_mapa())(c)
 
 
 def cierre_por_tecnologia(df):
