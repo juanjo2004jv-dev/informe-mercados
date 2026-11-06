@@ -30,7 +30,7 @@ import pandas as pd
 import yaml
 
 RAIZ = Path(__file__).resolve().parent.parent
-ALMACEN = RAIZ / "data" / "i3_diario.csv.gz"
+ALMACEN = RAIZ / "data" / "i3_diario_v2.csv.gz"
 MAPA = RAIZ / "src" / "i3_mapa.yml"
 COLS = ["fecha", "mercado", "tecnologia", "magnitud", "fase", "tipologia", "sentido", "valor"]
 ARCHIVO_I3 = 32
