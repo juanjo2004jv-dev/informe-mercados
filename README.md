@@ -16,14 +16,11 @@ Fuentes públicas: ESIOS (REE) —indicadores e I3—, OMIE. Colores y marca pro
 3. En el repo: *Settings → Secrets and variables → Actions → New repository secret* → nombre `ESIOS_TOKEN`, valor = tu token.
 4. *Settings → Pages* → Source: **Deploy from a branch**, rama `main`, carpeta `/docs`.
 5. *Actions → "Informe semanal" → Run workflow* con **demo** marcado → comprueba que se genera `docs/demo.pdf` (datos sintéticos).
-6. **Diagnóstico I3 (importante, una vez)**: *Actions → "I3 diagnóstico" → Run workflow* con un día de hace ≥5 días.
-   Genera `data/i3_estructura.txt`. **Envíamelo en un chat de Claude** y ajusto `src/i3_mapa.yml` si hace falta.
-   (El lector del I3 está hecho para autodetectar, pero no pude probarlo contra un archivo real de REE.)
+6. **Diagnóstico I3 (opcional)**: *Actions → "I3 diagnóstico"* con un día de hace ≥5 días genera `data/i3_estructura.txt` para revisar la estructura. El lector (`src/i3_real.py`) ya está validado contra el I3 real (la cascada cierra contra P48).
 7. **Histórico I3**: *Actions → "I3 histórico" → Run workflow*. Repítelo hasta que diga que no quedan días
    (necesario para el "año a año" de la Operación Reforzada).
-8. **IDs de series**: *Actions → "Volcar indicadores"* crea `data/indicadores_esios.csv`. Súbeselo a Claude y pídele
-   que rellene los `id: null` de `config.yml` (aFRR, mFRR, casación…). Los IDs provisionales se descartan solos si el nombre no coincide.
-9. *Actions → "Informe semanal" → Run workflow* con semana `anterior` → PDF real. Después sale solo **lunes y martes a las 07:00-08:00**.
+8. **IDs de series**: ya están rellenados en `config.yml` (los que tienen datos). *Actions → "Descubrir indicadores"* permite buscar otros por texto o `ids:630,631`.
+9. *Actions → "Informe semanal" → Run workflow* con semana `anterior` → PDF real. Después sale solo **los lunes a las 07:00-08:00 (hora de Madrid; el martes es un reintento)**.
    Si el I3 de la semana aún no está completo o no valida, el informe sale igualmente **sin** las secciones I3 y lo dice en "Cómo leer".
 10. (Opcional) Correo: secretos `EMAIL_USER`, `EMAIL_PASS` (contraseña de aplicación de Gmail) y `EMAIL_TO`
     (una o varias direcciones separadas por coma; van en **copia oculta**).
@@ -40,5 +37,5 @@ El PDF queda en `https://TU_USUARIO.github.io/informe-mercados/ultimo.pdf` y el 
 
 ## Limitaciones honestas
 - El acta del GT de Almacenamiento es contenido privado: no se puede replicar. Se ofrece en su lugar análisis propio.
-- El I3 llega con ~3 días de retraso, por eso la semana completa puede tardar al martes.
+- El I3 de REE se publica con ~4 días de retraso: el domingo ya está el jueves, así que el lunes la semana anterior está completa. Si por cualquier motivo falta algún día, el informe sale igualmente sin las secciones I3 y el martes se reintenta.
 - La demo usa datos sintéticos (marcados como tales en el PDF).
