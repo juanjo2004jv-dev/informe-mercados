@@ -95,22 +95,48 @@ def abrir_libro(contenido, nombre="x.xls"):
     return {n: wb.get_sheet_by_name(n).to_python() for n in wb.sheet_names}
 
 
+CRUDO = {}   # primeras líneas de cada CSV (para el diagnóstico)
+
+
+def _num(v):
+    t = v.strip().replace(".", "").replace(",", ".") if v.count(",") == 1 and v.count(".") <= 1 and re.fullmatch(r"-?[\d.]+,\d+", v.strip()) else v.strip()
+    try:
+        return float(t)
+    except ValueError:
+        return v.strip()
+
+
+def leer_csv(raw, nombre):
+    txt = None
+    for enc in ("utf-8-sig", "latin-1"):
+        try:
+            txt = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    lineas = txt.splitlines()
+    CRUDO[nombre] = lineas[:6]
+    sep = max((";", ",", "\t", "|"), key=lambda c: sum(l.count(c) for l in lineas[:10]))
+    return [[_num(c) for c in l.split(sep)] for l in lineas]
+
+
 def hojas_de_zip(contenido):
     if not zipfile.is_zipfile(io.BytesIO(contenido)):
-        try:                                      # quizá sea directamente un .xls antiguo
-            return abrir_libro(contenido, "x.xls")
-        except Exception:
-            raise RuntimeError("La descarga del I3 no es un zip ni un Excel. Empieza por: " + repr(contenido[:200]))
+        return abrir_libro(contenido, "x.xls")
     z = zipfile.ZipFile(io.BytesIO(contenido))
-    for n in z.namelist():
+    nombres = z.namelist()
+    csvs = [n for n in nombres if n.lower().endswith(".csv")]
+    if csvs:                                      # formato real: un CSV por hoja (I3DIA00_AAAAMMDD.csv)
+        return {Path(n).stem.split("_")[0]: leer_csv(z.read(n), Path(n).stem.split("_")[0]) for n in sorted(csvs)}
+    for n in nombres:
         if n.lower().endswith((".xls", ".xlsx", ".xlsm")):
             return abrir_libro(z.read(n), n)
-    for n in z.namelist():                        # zip dentro de zip
+    for n in nombres:                             # zip dentro de zip
         if n.lower().endswith(".zip"):
             return hojas_de_zip(z.read(n))
-    if any(n.startswith("xl/") for n in z.namelist()):   # el propio archivo es un .xlsx
+    if any(n.startswith("xl/") for n in nombres):   # el propio archivo es un .xlsx
         return abrir_libro(contenido, "x.xlsx")
-    raise RuntimeError("El zip del I3 no contiene ningún Excel. Contiene: " + ", ".join(z.namelist()[:20]))
+    raise RuntimeError("El zip del I3 no contiene ningún Excel ni CSV. Contiene: " + ", ".join(nombres[:20]))
 
 
 def descripcion_hojas(hojas):
@@ -344,6 +370,9 @@ def diagnostico(dia):
     desc = descripcion_hojas(hojas)
     mapa = cargar_mapa()
     out = [f"I3 del {dia}: {len(hojas)} hojas\n"]
+    for n_, ls in CRUDO.items():
+        out.append(f"--- CRUDO {n_}")
+        out.extend("   | " + l[:300] for l in ls)
     for n, datos in hojas.items():
         leidas = leer_hoja(datos)
         out.append(f"=== {n} · {desc.get(n, '')} · {len(leidas)} filas con datos")
