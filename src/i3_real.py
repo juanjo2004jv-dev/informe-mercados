@@ -147,12 +147,8 @@ def procesar(hojas, dia, precios=None):
             sesiones.setdefault(int(m.group(1)), {})[t] = v
     actual = {t: v.copy() for t, v in base.items()}
     ks = sorted(sesiones)
-    idx = 0
     for k in ks:
-        if k == ks[0] and all(np.allclose(np.nan_to_num(sesiones[k][t]), np.nan_to_num(base[t][:len(sesiones[k][t])]), atol=0.5) for t in sesiones[k] if t in base):
-            continue                              # PHF-1 coincide con el PDVP: no es una sesión
-        idx += 1
-        ida = min(idx, 3)
+        ida = min(k, 3)                           # PHF-k = programa tras la sesión intradiaria k
         nombre = f"Intradiario {ida}"
         for t, v in sesiones[k].items():
             ant = actual.get(t, np.zeros_like(v))
