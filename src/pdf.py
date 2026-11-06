@@ -380,7 +380,7 @@ def tendencia(d, res, t):
 
 
 def metodologia(d, res, cfg, meta, i3_estado=None):
-    fig = d.diapositiva("Cómo leer este informe", fuente="El panel de mercados es de ESIOS y refleja lo publicado en el momento de generar el informe; el I3 llega a los tres días y el I90, a los noventa.")
+    fig = d.diapositiva("Cómo leer este informe", fuente="El panel de mercados es de ESIOS y refleja lo publicado en el momento de generar el informe; el I3 llega a los cuatro días y el I90, a los noventa.")
     notas = [
         "El signo es el que publica REE: la compra es negativa, así que un ingreso negativo es un coste.",
         "Las celdas vacías son conceptos que REE no valora (bilaterales, indisponibilidades, desvíos comerciales), no ceros.",
