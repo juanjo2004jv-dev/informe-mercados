@@ -376,7 +376,7 @@ def diagnostico(dia):
     for n, datos in hojas.items():
         leidas = leer_hoja(datos)
         out.append(f"=== {n} · {desc.get(n, '')} · {len(leidas)} filas con datos")
-        for et, suma, _v in leidas[:6]:
+        for et, suma, _v in leidas[:150]:
             c = clasificar(n, desc.get(n, n), et, mapa)
             out.append(f"   {et} -> suma {suma:,.1f}  => {c}")
     ruta = RAIZ / "data" / "i3_estructura.txt"
