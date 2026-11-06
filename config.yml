@@ -1,0 +1,79 @@
+# ============================================================
+#  CONFIGURACIÓN DEL INFORME  (es el único archivo que tienes
+#  que tocar; todo lo demás es el motor)
+# ============================================================
+zona_horaria: Europe/Madrid
+
+# Marca del informe (aparece en portada y pies). Cámbiala a tu gusto.
+marca: Radar del mercado eléctrico
+autor: ""                     # p. ej. tu nombre; vacío = no se muestra
+
+# Batería de referencia para el "techo teórico" de arbitraje
+bateria:
+  horas: 4                    # duración (MWh por cada MW)
+  rendimiento_ida_vuelta: 0.85
+  coste_ciclado_eur_mwh: 4.0  # igual que el UNEF BESS Index
+  ciclos_max_dia: 1.5         # tope de descarga diaria (en veces la capacidad)
+
+# Si el precio spot de la semana tiene menos cobertura, no se publica
+umbral_cobertura_spot: 0.98
+
+# ---------- Series OBLIGATORIAS / ya identificadas ----------
+# 600  = precio mercado spot diario
+# 1293 / 544 / 545 = demanda real / prevista / programada
+#   (son los indicadores que cita el propio informe de UNEF)
+series:
+  spot:
+    id: 600
+    nombre: Mercado diario
+    unidad: €/MWh
+    geo: [3, 8741]            # 3 = España, 8741 = Península
+    palabras: [spot]          # se avisa si el nombre del indicador no las contiene
+  demanda_real:
+    id: 1293
+    nombre: Demanda real
+    unidad: MW
+    palabras: [demanda]
+  demanda_prevista:
+    id: 544
+    nombre: Demanda prevista
+    unidad: MW
+    palabras: [demanda]
+  demanda_programada:
+    id: 545
+    nombre: Demanda programada
+    unidad: MW
+    palabras: [demanda]
+
+# ---------- Series OPCIONALES ----------
+# id: null  -> la serie no se usa y sus diapositivas no aparecen.
+# provisional: true -> el ID es una suposición: si el nombre real del indicador
+#   no contiene las `palabras`, la serie se descarta (y se avisa en el informe).
+# Para completar los IDs: Actions -> "Volcar indicadores" genera
+# data/indicadores_esios.csv con todos los indicadores; ahí buscas cada nombre.
+# tipo: precio (€/MWh) | potencia (MW, generación) | energia (MW casados)
+#       banda_precio (€/MW) | banda_mw (MW)
+opcionales:
+  gen_solar_fv:    {id: 1295, provisional: true, palabras: [fotovoltaica], nombre: Generación solar FV, unidad: MW, tipo: potencia}
+  gen_eolica:      {id: 551,  provisional: true, palabras: [eolica], nombre: Generación eólica, unidad: MW, tipo: potencia}
+  ida1:            {id: 612,  provisional: true, palabras: [intradiario], nombre: Intradiario IDA1, unidad: €/MWh, tipo: precio}
+  ida2:            {id: 613,  provisional: true, palabras: [intradiario], nombre: Intradiario IDA2, unidad: €/MWh, tipo: precio}
+  ida3:            {id: 614,  provisional: true, palabras: [intradiario], nombre: Intradiario IDA3, unidad: €/MWh, tipo: precio}
+  continuo:        {id: null, nombre: Intradiario continuo (referencia), unidad: €/MWh, tipo: precio}
+  afrr_subir:      {id: null, nombre: aFRR energía a subir, unidad: €/MWh, tipo: precio}
+  afrr_bajar:      {id: null, nombre: aFRR energía a bajar, unidad: €/MWh, tipo: precio}
+  mfrr_subir:      {id: null, nombre: mFRR precio medio a subir, unidad: €/MWh, tipo: precio}
+  mfrr_bajar:      {id: null, nombre: mFRR precio medio a bajar, unidad: €/MWh, tipo: precio}
+  afrr_banda_p_subir: {id: null, nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_p_bajar: {id: null, nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_subir:   {id: null, nombre: Banda aFRR asignada a subir, unidad: MW, tipo: banda_mw}
+  afrr_banda_bajar:   {id: null, nombre: Banda aFRR asignada a bajar, unidad: MW, tipo: banda_mw}
+  casada_diario:   {id: null, nombre: Energía casada mercado diario, unidad: MW, tipo: energia}
+  casada_ida1:     {id: null, nombre: Energía casada IDA1, unidad: MW, tipo: energia}
+  casada_ida2:     {id: null, nombre: Energía casada IDA2, unidad: MW, tipo: energia}
+  casada_ida3:     {id: null, nombre: Energía casada IDA3, unidad: MW, tipo: energia}
+  casada_continuo: {id: null, nombre: Energía casada continuo, unidad: MW, tipo: energia}
+  afrr_energia_act_subir: {id: null, nombre: aFRR energía activada a subir, unidad: MW, tipo: energia}
+  afrr_energia_act_bajar: {id: null, nombre: aFRR energía activada a bajar, unidad: MW, tipo: energia}
+  mfrr_asig_subir: {id: null, nombre: mFRR asignación a subir (AP), unidad: MW, tipo: energia}
+  mfrr_asig_bajar: {id: null, nombre: mFRR asignación a bajar (AP), unidad: MW, tipo: energia}
