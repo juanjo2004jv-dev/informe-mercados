@@ -270,6 +270,20 @@ def spot_dia(cli, dia):
     return s.values if len(s) else None
 
 
+def precios_dia(cli, dia):
+    """Precios ESIOS del día (spot, IDA1-3, continuo) para valorar la energía del I3."""
+    out = {}
+    ini = pd.Timestamp(dia).tz_localize("Europe/Madrid")
+    fin = pd.Timestamp(dia + timedelta(days=1)).tz_localize("Europe/Madrid")
+    for k, i in (("spot", 600), ("ida1", 612), ("ida2", 613), ("ida3", 614), ("continuo", 1727)):
+        try:
+            _, s = cli.serie(i, ini, fin, [3, 8741] if i == 600 else None)
+            out[k] = s.values if len(s) else None
+        except Exception:
+            out[k] = None
+    return out
+
+
 def actualizar(desde, hasta, cli=None, maxdias=None):
     """Completa el almacén con los días que falten entre desde y hasta."""
     from .esios import Esios
@@ -285,11 +299,9 @@ def actualizar(desde, hasta, cli=None, maxdias=None):
         if dia not in tengo:
             try:
                 hojas = hojas_de_zip(descargar_dia(cli, dia))
-                try:
-                    sp = spot_dia(cli, dia)
-                except Exception:
-                    sp = None
-                df, sc = procesar_libro(hojas, pd.Timestamp(dia), mapa, sp)
+                from .i3_real import procesar as _proc
+
+                df, sc = _proc(hojas, pd.Timestamp(dia), precios_dia(cli, dia))
                 if len(df):
                     nuevos.append(df)
                 for k, v in sc.items():
@@ -336,8 +348,8 @@ def cascada(df, tec=None):
         "restr_tr_sub": s(["Restricciones TR"], "Subir"),
         "restr_tr_baj": s(["Restricciones TR"], "Bajar"),
         "post_tr": 0.0,
-        "terc_sub": s(["Terciaria"], "Subir"),
-        "terc_baj": s(["Terciaria"], "Bajar"),
+        "terc_sub": s(["Terciaria", "Otros"], "Subir"),
+        "terc_baj": s(["Terciaria", "Otros"], "Bajar"),
         "p48": prog["P48"],
     }
     calc = c["pbf"] + c["restr_pbf_sub"] + c["restr_pbf_baj"] + c["ida_sub"] + c["ida_baj"] + c["restr_tr_sub"] + c["restr_tr_baj"] + c["terc_sub"] + c["terc_baj"]
@@ -376,9 +388,21 @@ def diagnostico(dia):
     for n, datos in hojas.items():
         leidas = leer_hoja(datos)
         out.append(f"=== {n} · {desc.get(n, '')} · {len(leidas)} filas con datos")
-        for et, suma, _v in leidas[:150]:
+        for et, suma, _v in leidas[:3]:
             c = clasificar(n, desc.get(n, n), et, mapa)
             out.append(f"   {et} -> suma {suma:,.1f}  => {c}")
+    try:
+        from .i3_real import procesar, cierre_por_tecnologia
+
+        df, _ = procesar(hojas, pd.Timestamp(dia), precios_dia(cli, dia))
+        out.append("\n######## NUEVO LECTOR: filas %d" % len(df))
+        out.append(cierre_por_tecnologia(df).to_string())
+        out.append(str(validar(df)))
+        out.append(df.groupby(["mercado", "magnitud"])["valor"].sum().round(0).to_string())
+    except Exception as e:
+        import traceback
+
+        out.append("ERROR nuevo lector: " + traceback.format_exc())
     ruta = RAIZ / "data" / "i3_estructura.txt"
     ruta.write_text("\n".join(out), encoding="utf-8")
     print("\n".join(out[:80]))
