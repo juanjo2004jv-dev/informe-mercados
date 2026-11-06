@@ -146,7 +146,37 @@ def graficos(res):
     return ch
 
 
-def render(res, cfg, meta, demo=False, base=""):
+# Páginas del PDF que se muestran también en la web (lo esencial para almacenamiento), en este orden.
+WEB_CLAVES = [
+    "Señales de la semana",
+    "Precio de la banda de aFRR",
+    "Curva de duración",
+    "Rango de precios de cada día",
+    "¿Cuánto vale cada hora",
+    "Arbitraje frente a reservar banda",
+    "Dónde paga más cada mercado",
+    "Precio capturado por tecnología y mercado",
+    "Almacenamiento generación · energía",
+    "Almacenamiento generación · precio",
+    "Almacenamiento consumo · energía",
+    "Almacenamiento consumo · precio",
+    "Canibalización",
+    "Qué mueve el precio",
+]
+
+
+def es_web(titulo):
+    return bool(titulo) and any(titulo.startswith(k) for k in WEB_CLAVES)
+
+
+def _esenciales(paginas):
+    def clave(p):
+        return next(i for i, k in enumerate(WEB_CLAVES) if (p["titulo"] or "").startswith(k))
+
+    return sorted([p for p in paginas or [] if es_web(p["titulo"])], key=clave)
+
+
+def render(res, cfg, meta, demo=False, base="", paginas=None, pdf_url=None, npag=None):
     textos = redactar(res)
     env = Environment(loader=FileSystemLoader(RAIZ / "templates"), autoescape=select_autoescape(["html", "j2"]))
     env.filters["n"] = n
@@ -157,4 +187,5 @@ def render(res, cfg, meta, demo=False, base=""):
         rango=rango(res), semana_num=semana_num, anio=res["etiqueta"].split("-")[0],
         generado=datetime.now().strftime("%d/%m/%Y %H:%M"),
         bat=cfg["bateria"], base=base,
+        esenciales=_esenciales(paginas), npag=npag, pdf_url=pdf_url,
     )
