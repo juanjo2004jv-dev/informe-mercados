@@ -96,11 +96,21 @@ def abrir_libro(contenido, nombre="x.xls"):
 
 
 def hojas_de_zip(contenido):
+    if not zipfile.is_zipfile(io.BytesIO(contenido)):
+        try:                                      # quizá sea directamente un .xls antiguo
+            return abrir_libro(contenido, "x.xls")
+        except Exception:
+            raise RuntimeError("La descarga del I3 no es un zip ni un Excel. Empieza por: " + repr(contenido[:200]))
     z = zipfile.ZipFile(io.BytesIO(contenido))
     for n in z.namelist():
         if n.lower().endswith((".xls", ".xlsx", ".xlsm")):
             return abrir_libro(z.read(n), n)
-    raise RuntimeError("El zip del I3 no contiene ningún Excel")
+    for n in z.namelist():                        # zip dentro de zip
+        if n.lower().endswith(".zip"):
+            return hojas_de_zip(z.read(n))
+    if any(n.startswith("xl/") for n in z.namelist()):   # el propio archivo es un .xlsx
+        return abrir_libro(contenido, "x.xlsx")
+    raise RuntimeError("El zip del I3 no contiene ningún Excel. Contiene: " + ", ".join(z.namelist()[:20]))
 
 
 def descripcion_hojas(hojas):
