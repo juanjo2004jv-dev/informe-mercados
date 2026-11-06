@@ -3,8 +3,8 @@ name: Informe semanal
 on:
   schedule:
     # Lunes y martes a las 06:00 UTC (07:00-08:00 en España).
-    # El martes es un reintento: si el lunes ya salió bien, no hace nada.
-    - cron: "0 6 * * 1,2"
+    # El I3 de REE se publica con ~4 días de retraso: jueves, y viernes/sábado como reintento (si ya salió bien, no hace nada).
+    - cron: "0 6 * * 4,5,6"
   workflow_dispatch:
     inputs:
       semana:
