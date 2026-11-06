@@ -392,7 +392,9 @@ def diagnostico(dia):
             c = clasificar(n, desc.get(n, n), et, mapa)
             out.append(f"   {et} -> suma {suma:,.1f}  => {c}")
     try:
-        from .i3_real import procesar, cierre_por_tecnologia
+        from .i3_real import procesar, cierre_por_tecnologia, info_sesiones
+
+        out.append(info_sesiones(hojas))
 
         df, _ = procesar(hojas, pd.Timestamp(dia), precios_dia(cli, dia))
         out.append("\n######## NUEVO LECTOR: filas %d" % len(df))
