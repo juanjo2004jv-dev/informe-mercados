@@ -36,11 +36,14 @@ class Deck:
         self.pdf = PdfPages(ruta)
         self.marca, self.autor, self.periodo = marca, autor, periodo
         self.n = 0
+        self.paginas = []
+        self.img_dir = None
 
     # ---- marcos
     def _fig(self):
         fig = plt.figure(figsize=(W, H), facecolor=C["fondo"])
         self.n += 1
+        fig._n = self.n
         return fig
 
     def diapositiva(self, titulo, lectura=None, fuente="Fuente: ESIOS (REE) y OMIE. Elaboración propia."):
@@ -54,6 +57,7 @@ class Deck:
         fig.text(0.045, 0.014, textwrap.fill(fuente, 150), fontsize=7, color=C["gris"], va="bottom", linespacing=1.25)
         pie = f"{self.marca} · {self.periodo}  ·  {self.n}"
         fig.text(0.955, 0.03, pie, fontsize=7.5, color=C["gris"], ha="right")
+        fig._titulo = titulo
         return fig
 
     def eje(self, fig, lectura=True, caja=None):
@@ -69,6 +73,15 @@ class Deck:
 
     def guardar(self, fig):
         self.pdf.savefig(fig, facecolor=fig.get_facecolor())
+        if self.img_dir is not None:
+            num = getattr(fig, "_n", self.n)
+            nombre = f"{num:02d}.webp"
+            try:
+                fig.savefig(self.img_dir / nombre, format="webp", dpi=100, facecolor=fig.get_facecolor(), pil_kwargs={"quality": 82})
+            except Exception:
+                nombre = f"{num:02d}.png"
+                fig.savefig(self.img_dir / nombre, format="png", dpi=100, facecolor=fig.get_facecolor())
+            self.paginas.append({"n": num, "img": nombre, "titulo": getattr(fig, "_titulo", None), "sep": getattr(fig, "_sep", None)})
         plt.close(fig)
 
     def cerrar(self):
@@ -117,6 +130,7 @@ def separador(d, num, titulo, sub):
     fig.text(0.06, 0.55, f"{num:02d}", fontsize=80, fontweight="bold", color=C["coral"], va="center")
     fig.text(0.47, 0.58, textwrap.fill(titulo, 24), fontsize=28, fontweight="bold", color=C["verde"], va="center", linespacing=1.15)
     fig.text(0.47, 0.42, textwrap.fill(sub, 55), fontsize=13, color=C["gris"], va="top")
+    fig._sep = (num, titulo, sub)
     d.guardar(fig)
 
 
@@ -420,7 +434,7 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
 
 
 # ------------------------------------------------------------------ orquestación
-def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_estado=None):
+def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_estado=None, img_dir=None):
     """i3: tabla I3 de la semana (o None). i3_hist: histórico desde 2025-01-01 (o None)."""
     from . import extras as X
     from . import pdf_i3 as P3
@@ -428,6 +442,7 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     t = redactar(res)
     per = f"semana {res['etiqueta'][-2:]}/{res['etiqueta'][:4]}"
     d = Deck(ruta, cfg.get("marca", "Radar del mercado eléctrico"), cfg.get("autor", ""), per)
+    d.img_dir = img_dir
     dias = pd.DatetimeIndex([pd.Timestamp(x) for x in res["dias"]])
     rango_i3 = f"{res['dias'][0]} a {res['dias'][-1]} (7 días)"
     portada(d, res, cfg)
@@ -488,4 +503,4 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     X.sec_glosario(d)
     metodologia(d, res, cfg, meta, i3_estado)
     d.cerrar()
-    return d.n
+    return d.n, d.paginas
