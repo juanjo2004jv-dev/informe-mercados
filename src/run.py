@@ -157,16 +157,21 @@ def main():
     if cob < cfg["umbral_cobertura_spot"] and not a.force:
         sys.exit(f"Cobertura del precio spot insuficiente ({cob:.1%}). Se reintentará en la siguiente ejecución.")
 
-    html = render(res, cfg, meta, demo=a.demo, base="" if a.demo else "../")
+    html = render(res, cfg, meta, demo=a.demo, base="" if a.demo else "../", pdf_url=f"{etiqueta}.pdf" if not a.demo else "demo.pdf")
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text(html, encoding="utf-8")
     print(f"Generado {destino.relative_to(RAIZ)} (cobertura spot {cob:.1%})")
     i3, i3_hist, i3_estado = cargar_i3(lunes, res, a.demo)
     pdf = destino.with_suffix(".pdf")
-    paginas = generar_pdf(res, cfg, meta, pdf, demo=a.demo, i3=i3, i3_hist=i3_hist, i3_estado=i3_estado)
+    img_dir = None
+    if not a.demo:
+        img_dir = DOCS / "paginas"
+        shutil.rmtree(img_dir, ignore_errors=True)
+        img_dir.mkdir(parents=True, exist_ok=True)
+    paginas, lista_pag = generar_pdf(res, cfg, meta, pdf, demo=a.demo, i3=i3, i3_hist=i3_hist, i3_estado=i3_estado, img_dir=img_dir)
     print(f"Generado {pdf.relative_to(RAIZ)} ({paginas} páginas)")
     if not a.demo:
-        (DOCS / "index.html").write_text(render(res, cfg, meta, demo=False, base=""), encoding="utf-8")
+        (DOCS / "index.html").write_text(render(res, cfg, meta, demo=False, base="", paginas=lista_pag, pdf_url="ultimo.pdf", npag=paginas), encoding="utf-8")
         shutil.copyfile(pdf, DOCS / "ultimo.pdf")
         escribir_archivo(actualizar_historial(res))
         salida = os.environ.get("GITHUB_OUTPUT")
