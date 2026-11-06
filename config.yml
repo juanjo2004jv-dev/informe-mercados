@@ -62,13 +62,13 @@ opcionales:
   continuo:        {id: 1727, provisional: true, palabras: [continuo], nombre: Intradiario continuo (referencia), unidad: €/MWh, tipo: precio}
   afrr_subir:      {id: 682, provisional: true, palabras: [secundaria], nombre: aFRR energía a subir, unidad: €/MWh, tipo: precio}
   afrr_bajar:      {id: 683, provisional: true, palabras: [secundaria], nombre: aFRR energía a bajar, unidad: €/MWh, tipo: precio}
-  mfrr_subir:      {id: 677, provisional: true, palabras: [terciaria], nombre: mFRR precio medio a subir, unidad: €/MWh, tipo: precio}
-  mfrr_bajar:      {id: 676, provisional: true, palabras: [terciaria], nombre: mFRR precio medio a bajar, unidad: €/MWh, tipo: precio}
-  afrr_banda_p_subir: {id: null, nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
-  afrr_banda_p_bajar: {id: 634, provisional: true, palabras: [secundaria], nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
-  afrr_banda_subir:   {id: 632, provisional: true, palabras: [secundaria], nombre: Banda aFRR asignada a subir, unidad: MW, tipo: banda_mw}
-  afrr_banda_bajar:   {id: 633, provisional: true, palabras: [secundaria], nombre: Banda aFRR asignada a bajar, unidad: MW, tipo: banda_mw}
-  casada_diario:   {id: null, nombre: Energía casada mercado diario, unidad: MW, tipo: energia}
+  mfrr_subir:      {id: 2197, provisional: true, palabras: [mfrr], nombre: mFRR precio (activación programada), unidad: €/MWh, tipo: precio}
+  mfrr_bajar:      {id: null, nombre: mFRR precio medio a bajar, unidad: €/MWh, tipo: precio}
+  afrr_banda_p_subir: {id: 10388, provisional: true, palabras: [reserva], nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_p_bajar: {id: 10463, provisional: true, palabras: [reserva], nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_subir:   {id: 630, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a subir, unidad: MW, tipo: banda_mw}
+  afrr_banda_bajar:   {id: 631, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a bajar, unidad: MW, tipo: banda_mw}
+  casada_diario:   {id: 602, provisional: true, palabras: [diario], nombre: Energía casada mercado diario, unidad: MW, tipo: energia}
   casada_ida1:     {id: 605, provisional: true, palabras: [intradiario], nombre: Energía casada IDA1, unidad: MW, tipo: energia}
   casada_ida2:     {id: 606, provisional: true, palabras: [intradiario], nombre: Energía casada IDA2, unidad: MW, tipo: energia}
   casada_ida3:     {id: 607, provisional: true, palabras: [intradiario], nombre: Energía casada IDA3, unidad: MW, tipo: energia}
