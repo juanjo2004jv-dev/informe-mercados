@@ -1,0 +1,8 @@
+pandas>=2.0
+numpy
+requests
+jinja2
+pyyaml
+matplotlib
+python-calamine
+openpyxl
