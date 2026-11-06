@@ -47,6 +47,11 @@ th,td{padding:7px 12px 7px 0;border-bottom:1px solid var(--rule);text-align:righ
 th:first-child,td:first-child{text-align:left}
 th{font-weight:600;color:var(--muted);font-size:13px}
 .tabla-scroll{overflow-x:auto}
+.pdfbtn{display:inline-block;background:var(--teal);color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600}
+.cta{margin:-22px 0 40px}
+figure.pag{margin:0 0 26px}
+figure.pag img{width:100%;height:auto;display:block;border:1px solid var(--rule);border-radius:4px;background:#fff}
+figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 @media (max-width:900px){
   .wrap{grid-template-columns:1fr;padding:0 18px}
   .rail{position:static;height:auto;padding:28px 0 8px}
@@ -77,6 +82,8 @@ th{font-weight:600;color:var(--muted);font-size:13px}
     {% if res.captura %}<a href="#captura">Precio capturado</a>{% endif %}
     {% if res.demanda %}<a href="#demanda">Demanda</a>{% endif %}
     <a href="#tendencia">Tendencia</a>
+    {% if esenciales %}<a href="#almacenamiento">Más para almacenamiento</a>{% endif %}
+    {% if pdf_url %}<a href="{{ pdf_url }}">PDF completo{% if npag %} ({{ npag }} págs.){% endif %}</a>{% endif %}
     <a href="#metodo">Datos y método</a>
     <a href="{{ base }}archivo.html">Semanas anteriores</a>
   </nav>
@@ -90,10 +97,13 @@ th{font-weight:600;color:var(--muted);font-size:13px}
   <div><dt>Precio medio</dt><dd>{{ res.precio_medio|n }} <span class="sub">€/MWh</span></dd>
     <span class="sub {{ 'neg' if res.var_prev < 0 else 'pos' }}">{{ res.var_prev|n(1,True) }} % vs semana anterior</span></div>
   <div><dt>Rango de precios</dt><dd>{{ res.precio_min|n(0) }} a {{ res.precio_max|n(0) }}</dd><span class="sub">€/MWh, por cuarto de hora</span></div>
+  <div><dt>Spread diario medio</dt><dd>{{ res.spread_medio|n(0) }} <span class="sub">€/MWh</span></dd><span class="sub">máx. − mín. del día</span></div>
   <div><dt>Horas a precio ≤ 0</dt><dd>{{ res.horas_neg|n(1) }} <span class="sub">h</span></dd></div>
   <div><dt>Techo de arbitraje</dt><dd>{{ res.bess_dia|n(0) }} <span class="sub">€/MW·día</span></dd><span class="sub">batería {{ bat.horas|int }} h</span></div>
   {% if res.captura.gen_solar_fv %}<div><dt>Solar capturó</dt><dd>{{ res.captura.gen_solar_fv.ratio|n(0) }} <span class="sub">% del precio medio</span></dd></div>{% endif %}
 </dl>
+
+{% if pdf_url %}<p class="cta"><a class="pdfbtn" href="{{ pdf_url }}">Descargar el informe completo en PDF{% if npag %} · {{ npag }} páginas{% endif %}</a> <span class="sub" style="color:var(--muted);font-size:13px">incluye I3 por tecnología, restricciones técnicas y operación reforzada</span></p>{% endif %}
 
 <section id="calor">
   <h2>{{ t.h_calor }}</h2>
@@ -152,9 +162,17 @@ th{font-weight:600;color:var(--muted);font-size:13px}
 
 <section id="tendencia">
   <h2>{{ t.h_tend }}</h2>
-  <p>Cinco semanas seguidas, la actual incluida. El precio medio y el techo de arbitraje no siempre se mueven juntos: lo que paga la batería es la forma del día, no su nivel.</p>
+  <p>Evolución de las últimas semanas. El precio medio y el techo de arbitraje no siempre se mueven juntos: lo que paga la batería es la forma del día, no su nivel.</p>
   <div class="graf"><div id="g_tend"></div></div>
 </section>
+
+{% if esenciales %}
+<section id="almacenamiento">
+  <h2>Más para almacenamiento: servicios de balance, duración y renta de cada tecnología</h2>
+  <p>Lo que completa el arbitraje del diario: qué paga la banda de aFRR frente a arbitrar, cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario y cómo le va a cada tecnología según la liquidación (I3).</p>
+  {% for p in esenciales %}<figure class="pag"><img loading="lazy" decoding="async" src="{{ base }}paginas/{{ p.img }}" alt="{{ p.titulo }}" width="1333" height="750"><figcaption>{{ p.titulo }}</figcaption></figure>{% endfor %}
+</section>
+{% endif %}
 
 <section id="metodo">
   <h2>Datos y método</h2>
@@ -165,7 +183,7 @@ th{font-weight:600;color:var(--muted);font-size:13px}
     </tbody></table></div>
   {% for k, m in meta.items() %}{% if m.get('aviso') %}<p class="nota">Aviso en {{ m.nombre }}: {{ m.aviso }}</p>{% endif %}{% endfor %}
   <p class="nota" style="margin-top:14px">Los precios son cuartohorarios (el mercado diario es de 15 minutos desde el 1 de octubre de 2025). Cuando una serie llega con resolución horaria, su valor se repite en los cuatro cuartos. Las horas son locales; los días de cambio de hora tienen 92 o 100 cuartos. Los datos son los publicados en el momento de generar el informe, y ESIOS puede revisarlos después.</p>
-  <p class="nota"><strong>Pendiente de añadir:</strong> restricciones técnicas y liquidaciones por tecnología (ficheros I3 de REE), que se publican con unos tres días de retraso.</p>
+  <p class="nota">Las páginas de liquidación por tecnología y restricciones técnicas salen del I3 de REE, que se publica con unos cuatro días de retraso; el informe completo en PDF las incluye todas.</p>
 </section>
 </main>
 </div>
