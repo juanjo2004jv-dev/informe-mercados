@@ -166,13 +166,17 @@ def tecnologia_detalle(d, i3, tec, nombre, dias, rango):
     d.guardar(fig)
     # precio capturado
     e = sub.groupby(["mercado", "magnitud"])["valor"].sum().unstack("magnitud").fillna(0)
+    bruto = sub[sub["magnitud"] == "energia"].groupby("mercado")["valor"].apply(lambda x: x.abs().sum())
     fig = d.diapositiva(f"{nombre} · precio capturado",
                         "Lo cobrado en cada mercado entre su propia energía. Cuando la compra y la venta de un mercado casi se cancelan, el cociente se dispara y deja "
                         "de ser un precio: esos casos no se pintan.", FUENTE_I3.format(rango=rango))
     ax = d.eje(fig)
     xs, vs, cs = [], [], []
     for m in MERCADOS:
-        if m in e.index and abs(e.loc[m].get("energia", 0)) > 100 and "ingreso" in e.columns:
+        en = abs(e.loc[m].get("energia", 0)) if m in e.index else 0
+        # mismo criterio que la tabla de calor: si la energía neta es menos del 35 % de la bruta, compra y venta
+        # casi se cancelan y el cociente deja de ser un precio (p. ej. eólica en IDA3: −133 €/MWh)
+        if m in e.index and en > 100 and "ingreso" in e.columns and en >= 0.35 * float(bruto.get(m, 0)):
             p = e.loc[m, "ingreso"] / e.loc[m, "energia"]
             if abs(p) < 900:
                 xs.append(m)
