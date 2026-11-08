@@ -480,7 +480,11 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
             yy -= 0.034
     avisos = [f"{m['nombre']}: {m['aviso']}" for m in meta.values() if m.get("aviso")]
     if avisos:
-        fig.text(0.05, 0.13, textwrap.fill("Avisos: " + " | ".join(avisos), 190), fontsize=8, color=C["coral"], va="top")
+        txt_av = textwrap.fill("Avisos: " + " | ".join(avisos), 215)
+        lineas = txt_av.split("\n")
+        if len(lineas) > 7:
+            txt_av = "\n".join(lineas[:7]) + " […]"
+        fig.text(0.05, min(0.27, yy - 0.01), txt_av, fontsize=7.4, color=C["coral"], va="top", linespacing=1.3)
     d.guardar(fig)
 
 
