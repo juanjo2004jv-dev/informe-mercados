@@ -124,6 +124,24 @@ def redactar(res):
             e = cs["gen_eolica"]
             t["p_solar"] += f" La eólica capturó {n(e['precio'])} €/MWh ({n(e['ratio'], 0)} %)."
 
+    # --- comparación con la misma semana del año anterior y acumulado del año
+    cp = res.get("comparativa") or {}
+    an = cp.get("anterior")
+    if an and an.get("precio_medio") == an.get("precio_medio"):
+        partes = [f"Frente a la misma semana de {an['etiqueta'][:4]}: precio medio {n(an['precio_medio'])} €/MWh "
+                  f"({n((pm / an['precio_medio'] - 1) * 100, 0, True)} %)"]
+        if an.get("bess_4h") == an.get("bess_4h") and an.get("bess_4h"):
+            partes.append(f"techo de arbitraje {n(an['bess_4h'], 0)} €/MW·día ({n((res['bess_dia'] / an['bess_4h'] - 1) * 100, 0, True)} %)")
+        t["p_comp"] = ", ".join(partes) + "."
+    if cp.get("ytd") and cp.get("ytd_prev"):
+        t["p_ytd"] = (f"Techo de arbitraje acumulado en el año (4 h): {n(cp['ytd'] / 1000, 1)} k€/MW en {cp['ytd_semanas']} semanas, "
+                      f"frente a {n(cp['ytd_prev'] / 1000, 1)} k€/MW en el mismo periodo del año anterior"
+                      + (" (hasta octubre de 2025 el diario era horario, lo que rebaja algo el techo de esas semanas)." if res["lunes"].year == 2026 else "."))
+    mm = res.get("multimercado")
+    if mm and mm.get("uplift") == mm.get("uplift"):
+        t["p_mm"] = (f"Sumando las subastas intradiarias al diario, el techo de la batería sube a {n(mm['media'], 0)} €/MW al día "
+                     f"({n(mm['uplift'], 0, True)} %).")
+
     # --- baterías del sistema y renovables
     b = res.get("baterias")
     if b and b.get("mwh_entrega", 0) > 0 and not np.isnan(b.get("spread", np.nan)):
