@@ -476,7 +476,10 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
             m = meta.get(k, {})
             fig.text(x0, yy, textwrap.shorten(str(m.get("nombre", k)), 30), fontsize=8.5, va="center")
             fig.text(x0 + 0.28, yy, f"ID {m.get('id', '—')}", fontsize=8.5, va="center", color=C["gris"])
-            fig.text(x0 + 0.42, yy, f"{c * 100:.0f} %", fontsize=8.5, va="center", ha="right", color=C["verde"] if c > 0.97 else C["coral"])
+            est = "ESTIMA" in m.get("aviso", "")                      # completada con estimación: no es dato publicado
+            ok = c > 0.97 or (k in ("ida3", "casada_ida3") and c >= 0.45)  # el IDA3 solo cubre 12-24 h por diseño
+            fig.text(x0 + 0.42, yy, f"{c * 100:.0f} %" + (" est." if est else ""), fontsize=8.5, va="center", ha="right",
+                     color=C["mostaza"] if est else (C["verde"] if ok else C["coral"]))
             yy -= 0.034
     avisos = [f"{m['nombre']}: {m['aviso']}" for m in meta.values() if m.get("aviso")]
     if avisos:
@@ -517,8 +520,8 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     # ---- 01 mercados
     separador(d, 1, "Los mercados del periodo", "Precio, energía casada, servicios de balance y demanda, cuarto de hora a cuarto de hora.")
     S(precios, d, res, cfg)
-    est = [m["aviso"] for k, m in meta.items() if k.startswith("afrr_banda_p") and "ESTIMAN" in m.get("aviso", "")]
-    res["nota_banda"] = ("Parte de la semana es ESTIMADA: " + est[0].split("; los días ")[-1].rstrip(".") + ".") if est else ""
+    est = [m["aviso"] for k, m in meta.items() if k.startswith("afrr_banda_p") and "ESTIMA" in m.get("aviso", "")]
+    res["nota_banda"] = ("Parte de la semana es ESTIMADA: " + est[0].rstrip(".").split("; ")[-1] + ".") if est else ""
     S(lineas_tipo, d, res, cfg, "banda_precio", "Precio de la banda de aFRR",
       "La banda se contrata en potencia, no en energía: su precio va en €/MW y por eso no cabe en el mismo eje que el resto.", "€/MW",
       fuente=("Fuente: ESIOS (REE). " + res["nota_banda"]) if res["nota_banda"] else None)
@@ -528,8 +531,11 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     S(lineas_tipo, d, res, cfg, "energia_balance", "Servicios de balance: energía activada y asignada",
       "aFRR activada (lo que la regulación secundaria movió de verdad) y mFRR asignada en activación programada, en MW medios por cuarto de hora. "
       "Es el volumen que se reparten las unidades que prestan balance, baterías incluidas.", "MW")
-    S(lineas_tipo, d, res, cfg, "banda_mw", "Banda de aFRR: asignada y requerida",
-      "Potencia reservada en cada sentido (asignada, ID 632/633) y la que pide REE (requerida, ID 630/631).", "MW")
+    asig = any(k in res["series"] and res["series"][k].notna().mean() > 0.3 for k in ("afrr_banda_subir", "afrr_banda_bajar"))
+    S(lineas_tipo, d, res, cfg, "banda_mw", "Banda de aFRR: asignada y requerida" if asig else "Banda de aFRR requerida por REE",
+      "Potencia reservada en cada sentido (asignada, ID 632/633) y la que pide REE (requerida, ID 630/631)." if asig else
+      "Potencia de banda que pide REE en cada sentido (requerida, ID 630/631). ESIOS no ha publicado esta semana la banda asignada "
+      "(ID 632/633), así que solo se muestra la requerida.", "MW")
     S(demanda, d, res, t)
     S(X.sec_mix, d, res)
     S(tabla_mercados, d, res, cfg)
