@@ -1,7 +1,7 @@
 name: I3 histórico (una vez)
 
 # Descarga el I3 desde 2025-01-01 para tener el "año a año" de la Operación Reforzada.
-# Cada ejecución procesa hasta 150 días; vuelve a lanzarlo hasta que diga "0 días pendientes".
+# Cada ejecución procesa hasta 800 días (guarda cada 60); vuelve a lanzarlo si queda algo pendiente.
 on:
   workflow_dispatch:
     inputs:
@@ -30,7 +30,7 @@ jobs:
         env:
           ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
           DESDE: ${{ inputs.desde }}
-        run: python -m src.i3 --backfill "$DESDE" --maxdias 150
+        run: python -m src.i3 --backfill "$DESDE" --maxdias 800
       - name: Guardar
         run: |
           git config user.name "informe-bot"
