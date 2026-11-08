@@ -205,6 +205,7 @@ WEB_CLAVES = [
     "Curva de duración",
     "Rango de precios de cada día",
     "¿Cuánto vale cada hora",
+    "Arbitraje: solo diario frente a diario + intradiarios",
     "Arbitraje frente a reservar banda",
     "Dónde paga más cada mercado",
     "Precio capturado por tecnología y mercado",
@@ -228,6 +229,18 @@ def _esenciales(paginas):
     return sorted([p for p in paginas or [] if es_web(p["titulo"])], key=clave)
 
 
+def _graficos_seguro(res):
+    """Si un gráfico interactivo falla, la web sale igual (sin ese gráfico) en vez de no salir."""
+    try:
+        return graficos(res)
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        print(f"AVISO: gráficos de la web omitidos ({type(e).__name__}: {str(e)[:100]})")
+        return {}
+
+
 def render(res, cfg, meta, demo=False, base="", paginas=None, pdf_url=None, npag=None):
     textos = redactar(res)
     env = Environment(loader=FileSystemLoader(RAIZ / "templates"), autoescape=select_autoescape(["html", "j2"]))
@@ -235,7 +248,7 @@ def render(res, cfg, meta, demo=False, base="", paginas=None, pdf_url=None, npag
     tpl = env.get_template("informe.html.j2")
     semana_num = int(res["etiqueta"].split("S")[1])
     return tpl.render(
-        res=res, t=textos, charts=graficos(res), cfg=cfg, meta=meta, demo=demo,
+        res=res, t=textos, charts=_graficos_seguro(res), cfg=cfg, meta=meta, demo=demo,
         rango=rango(res), semana_num=semana_num, anio=res["etiqueta"].split("-")[0],
         generado=datetime.now(ZoneInfo(TZ)).strftime("%d/%m/%Y %H:%M"),
         bat=cfg["bateria"], base=base,
