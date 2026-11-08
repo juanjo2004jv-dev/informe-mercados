@@ -94,7 +94,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 
 <main>
 {% if demo %}<p class="aviso"><strong>Datos sintéticos de prueba.</strong> Este informe sirve para comprobar el diseño; las cifras no son reales.</p>{% endif %}
-{% if res.provisional and not demo %}<p class="aviso"><strong>Edición provisional.</strong> Mercados, servicios de balance, mix y baterías están completos. La liquidación por tecnología y las restricciones técnicas (I3 de REE) se añaden solas cuando REE publica los siete días, hacia el viernes.</p>{% endif %}
+{% if res.provisional and not demo %}<p class="aviso"><strong>Edición provisional.</strong> Mercados, servicios de balance, mix y baterías están completos. {% if res.i3_anterior %}La liquidación por tecnología y las restricciones técnicas (I3 de REE) del PDF son de la semana anterior: se sustituyen solas por las de esta semana cuando REE publica los siete días, entre el jueves y el viernes.{% else %}La liquidación por tecnología y las restricciones técnicas (I3 de REE) se añaden solas cuando REE publica los siete días, entre el jueves y el viernes.{% endif %}</p>{% endif %}
 
 <dl class="cinta">
   <div><dt>Precio medio</dt><dd>{{ res.precio_medio|n }} <span class="sub">€/MWh</span></dd>
@@ -105,10 +105,11 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
   <div><dt>Techo de arbitraje</dt><dd>{{ res.bess_dia|n(0) }} <span class="sub">€/MW·día</span></dd><span class="sub">batería {{ bat.horas|int }} h</span></div>
   {% if res.captura.gen_solar_fv %}<div><dt>Solar capturó</dt><dd>{{ res.captura.gen_solar_fv.ratio|n(0) }} <span class="sub">% del precio medio</span></dd><span class="sub">{{ res.captura.gen_solar_fv.precio|n(1) }} €/MWh</span></div>{% endif %}
   {% if res.mix %}<div><dt>Renovables</dt><dd>{{ res.mix.renovable_pct|n(0) }} <span class="sub">% de la generación</span></dd><span class="sub">máx. {{ res.mix.renovable_max|n(0) }} % en un cuarto</span></div>{% endif %}
+  {% if res.multimercado %}<div><dt>Techo con intradiarios</dt><dd>{{ res.multimercado.media|n(0) }} <span class="sub">€/MW·día</span></dd><span class="sub">{{ res.multimercado.uplift|n(0,True) }} % sobre solo diario</span></div>{% endif %}
   {% if res.baterias and res.baterias.spread == res.baterias.spread %}<div><dt>Spread de las baterías</dt><dd>{{ res.baterias.spread|n(0) }} <span class="sub">€/MWh</span></dd><span class="sub">capturado por el parque real</span></div>{% endif %}
 </dl>
 
-{% if pdf_url %}<p class="cta"><a class="pdfbtn" href="{{ pdf_url }}">Descargar el informe completo en PDF{% if npag %} · {{ npag }} páginas{% endif %}</a> <span class="sub" style="color:var(--muted);font-size:13px">{% if res.provisional %}edición provisional: el I3 se añade cuando REE lo publica{% else %}incluye I3 por tecnología, restricciones técnicas y operación reforzada{% endif %}</span></p>{% endif %}
+{% if pdf_url %}<p class="cta"><a class="pdfbtn" href="{{ pdf_url }}">Descargar el informe completo en PDF{% if npag %} · {{ npag }} páginas{% endif %}</a> <span class="sub" style="color:var(--muted);font-size:13px">{% if res.provisional %}edición provisional: {% if res.i3_anterior %}I3 de la semana anterior, se actualiza solo{% else %}el I3 se añade cuando REE lo publica{% endif %}{% else %}incluye I3 por tecnología, restricciones técnicas y operación reforzada{% endif %}</span></p>{% endif %}
 
 <section id="calor">
   <h2>{{ t.h_calor }}</h2>
@@ -122,6 +123,17 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
   <p>{{ t.p_bess }}</p>
   <div class="graf"><div id="g_bess"></div></div>
   <p class="nota">Techo teórico para 1 MW / {{ bat.horas|int }} MWh, rendimiento de ida y vuelta del {{ (bat.rendimiento_ida_vuelta*100)|int }} %, tope de {{ bat.ciclos_max_dia|n(1) }} ciclos al día y coste de ciclado de {{ bat.coste_ciclado_eur_mwh|n(0) }} €/MWh, solo con precios del mercado diario y previsión perfecta, empezando y terminando cada día vacía. No incluye aFRR, mFRR ni intradiarios, y no es un ingreso garantizado: es la cota máxima del arbitraje en este mercado.</p>
+  {% set mm = res.multimercado %}{% set tb = res.tb or {} %}{% set cp = res.comparativa or {} %}
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Indicador para baterías</th><th>Esta semana</th>{% if cp.anterior %}<th>Misma semana {{ cp.anterior.etiqueta[:4] }}</th>{% endif %}<th>Qué mide</th></tr></thead>
+    <tbody>
+    <tr><td>Techo de arbitraje · solo diario (4 h)</td><td>{{ res.bess_dia|n(0) }} €/MW·día</td>{% if cp.anterior %}<td>{{ cp.anterior.bess_4h|n(0) }} €/MW·día</td>{% endif %}<td>Máximo con previsión perfecta en el diario</td></tr>
+    {% if mm %}<tr><td>Techo con diario + IDA1-3 (4 h)</td><td>{{ mm.media|n(0) }} €/MW·día <span class="sub">({{ mm.uplift|n(0,True) }} %)</span></td>{% if cp.anterior %}<td>—</td>{% endif %}<td>Reoptimizando con el mejor precio de cada cuarto entre diario e intradiarios</td></tr>{% endif %}
+    {% for k in [1, 2, 4] %}{% if tb.get(k) == tb.get(k) and tb.get(k) is not none %}<tr><td>Spread TB{{ k }}</td><td>{{ tb.get(k)|n(0) }} €/MWh</td>{% if cp.anterior %}<td>{% if k == 4 and cp.anterior.tb4 == cp.anterior.tb4 %}{{ cp.anterior.tb4|n(0) }} €/MWh{% else %}—{% endif %}</td>{% endif %}<td>{% if k == 1 %}Hora más cara menos hora más barata de cada día{% else %}Media de las {{ k }} h más caras menos las {{ k }} más baratas de cada día{% endif %}</td></tr>{% endif %}{% endfor %}
+    {% if cp.anterior %}<tr><td>Precio medio del diario</td><td>{{ res.precio_medio|n(1) }} €/MWh</td><td>{{ cp.anterior.precio_medio|n(1) }} €/MWh</td><td>Media de los cuartos de hora</td></tr>{% endif %}
+    {% if cp.ytd %}<tr><td>Techo acumulado en el año (4 h)</td><td>{{ (cp.ytd/1000)|n(1) }} k€/MW <span class="sub">{{ cp.ytd_semanas }} semanas</span></td>{% if cp.anterior %}<td>{% if cp.ytd_prev %}{{ (cp.ytd_prev/1000)|n(1) }} k€/MW{% else %}—{% endif %}</td>{% endif %}<td>Suma de los techos semanales del año</td></tr>{% endif %}
+    </tbody></table></div>
+  {% if cp.anterior %}<p class="nota" style="margin-top:10px">Hasta el 30 de septiembre de 2025 el mercado diario era horario: el techo de arbitraje de esas semanas sale algo más bajo que con precios cuartohorarios.</p>{% endif %}
 </section>
 
 <section id="perfil">
@@ -190,7 +202,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
       <tr><td>Venta (almacenamiento generación)</td><td>{{ g.p48_mwh|n(0) }} MWh</td><td>{{ g.ingreso|n(0) }} €</td><td>{{ res.i3_resumen.precio_venta|n(1) }}</td></tr>
       <tr><td>Compra (almacenamiento consumo)</td><td>{{ c.p48_mwh|abs|n(0) }} MWh</td><td>{{ c.ingreso|n(0) }} €</td><td>{{ res.i3_resumen.precio_compra|n(1) }}</td></tr>
     </tbody></table></div>
-  <p class="nota">En el I3, «almacenamiento consumo» suma más energía que la que cargan las baterías en tiempo real; por eso no se resta compra de venta ni se da un resultado neto.</p>{% else %}<p class="nota">La liquidación por mercado (I3) de las baterías se añade cuando REE la publica, hacia el viernes.</p>{% endif %}
+  <p class="nota">En el I3, «almacenamiento consumo» suma más energía que la que cargan las baterías en tiempo real; por eso no se resta compra de venta ni se da un resultado neto.</p>{% else %}<p class="nota">La liquidación por mercado (I3) de las baterías se añade cuando REE la publica, entre el jueves y el viernes.</p>{% endif %}
   <p class="nota" style="margin-top:14px">Tiempo real: indicadores 2166 (carga) y 2167 (entrega) de ESIOS, valorados al precio del diario. No es la liquidación: esa sale del I3.</p>
 </section>
 {% endif %}
@@ -206,7 +218,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 {% if esenciales %}
 <section id="almacenamiento">
   <h2>Más para almacenamiento: servicios de balance, duración y renta de cada tecnología</h2>
-  <p>Lo que completa el arbitraje del diario: cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario{% if res.series.afrr_banda_p_subir is defined and res.series.afrr_banda_p_subir.notna().mean() > 0.3 %}, qué paga la banda de aFRR frente a arbitrar{% endif %}{% if not res.provisional %} y cómo le va a cada tecnología según la liquidación (I3){% endif %}.</p>
+  <p>Lo que completa el arbitraje del diario: cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario{% if res.series.afrr_banda_p_subir is defined and res.series.afrr_banda_p_subir.notna().mean() > 0.3 %}, qué paga la banda de aFRR frente a arbitrar{% endif %}{% if not res.provisional %} y cómo le va a cada tecnología según la liquidación (I3){% elif res.i3_anterior %} y cómo le fue a cada tecnología según la liquidación (I3) de la semana anterior, la última completa{% endif %}.</p>
   {% for p in esenciales %}<figure class="pag"><img loading="lazy" decoding="async" src="{{ base }}paginas/{{ p.img }}" alt="{{ p.titulo }}" width="1333" height="750"><figcaption>{{ p.titulo }}</figcaption></figure>{% endfor %}
 </section>
 {% endif %}
