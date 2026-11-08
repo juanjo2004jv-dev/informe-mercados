@@ -81,6 +81,8 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
     {% if res.extras %}<a href="#mercados">Otros mercados</a>{% endif %}
     {% if res.captura %}<a href="#captura">Precio capturado</a>{% endif %}
     {% if res.demanda %}<a href="#demanda">Demanda</a>{% endif %}
+    {% if res.mix %}<a href="#mix">Mix y renovables</a>{% endif %}
+    {% if res.baterias or res.i3_resumen %}<a href="#baterias-sistema">Baterías del sistema</a>{% endif %}
     <a href="#tendencia">Tendencia</a>
     {% if esenciales %}<a href="#almacenamiento">Más para almacenamiento</a>{% endif %}
     {% if pdf_url %}<a href="{{ pdf_url }}">PDF completo{% if npag %} ({{ npag }} págs.){% endif %}</a>{% endif %}
@@ -92,18 +94,21 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 
 <main>
 {% if demo %}<p class="aviso"><strong>Datos sintéticos de prueba.</strong> Este informe sirve para comprobar el diseño; las cifras no son reales.</p>{% endif %}
+{% if res.provisional and not demo %}<p class="aviso"><strong>Edición provisional.</strong> Mercados, servicios de balance, mix y baterías están completos. La liquidación por tecnología y las restricciones técnicas (I3 de REE) se añaden solas cuando REE publica los siete días, hacia el viernes.</p>{% endif %}
 
 <dl class="cinta">
   <div><dt>Precio medio</dt><dd>{{ res.precio_medio|n }} <span class="sub">€/MWh</span></dd>
     <span class="sub {{ 'neg' if res.var_prev < 0 else 'pos' }}">{{ res.var_prev|n(1,True) }} % vs semana anterior</span></div>
-  <div><dt>Rango de precios</dt><dd>{{ res.precio_min|n(0) }} a {{ res.precio_max|n(0) }}</dd><span class="sub">€/MWh, por cuarto de hora</span></div>
+  <div><dt>Rango de precios</dt><dd>{{ res.precio_min|n(1) }} a {{ res.precio_max|n(0) }}</dd><span class="sub">€/MWh, por cuarto de hora</span></div>
   <div><dt>Spread diario medio</dt><dd>{{ res.spread_medio|n(0) }} <span class="sub">€/MWh</span></dd><span class="sub">máx. − mín. del día</span></div>
-  <div><dt>Horas a precio ≤ 0</dt><dd>{{ res.horas_neg|n(1) }} <span class="sub">h</span></dd></div>
+  <div><dt>Horas a precio ≤ 0</dt><dd>{{ res.horas_neg|n(1) }} <span class="sub">h</span></dd><span class="sub">mínimo {{ res.precio_min|n(1) }} €/MWh</span></div>
   <div><dt>Techo de arbitraje</dt><dd>{{ res.bess_dia|n(0) }} <span class="sub">€/MW·día</span></dd><span class="sub">batería {{ bat.horas|int }} h</span></div>
-  {% if res.captura.gen_solar_fv %}<div><dt>Solar capturó</dt><dd>{{ res.captura.gen_solar_fv.ratio|n(0) }} <span class="sub">% del precio medio</span></dd></div>{% endif %}
+  {% if res.captura.gen_solar_fv %}<div><dt>Solar capturó</dt><dd>{{ res.captura.gen_solar_fv.ratio|n(0) }} <span class="sub">% del precio medio</span></dd><span class="sub">{{ res.captura.gen_solar_fv.precio|n(1) }} €/MWh</span></div>{% endif %}
+  {% if res.mix %}<div><dt>Renovables</dt><dd>{{ res.mix.renovable_pct|n(0) }} <span class="sub">% de la generación</span></dd><span class="sub">máx. {{ res.mix.renovable_max|n(0) }} % en un cuarto</span></div>{% endif %}
+  {% if res.baterias and res.baterias.spread == res.baterias.spread %}<div><dt>Spread de las baterías</dt><dd>{{ res.baterias.spread|n(0) }} <span class="sub">€/MWh</span></dd><span class="sub">capturado por el parque real</span></div>{% endif %}
 </dl>
 
-{% if pdf_url %}<p class="cta"><a class="pdfbtn" href="{{ pdf_url }}">Descargar el informe completo en PDF{% if npag %} · {{ npag }} páginas{% endif %}</a> <span class="sub" style="color:var(--muted);font-size:13px">incluye I3 por tecnología, restricciones técnicas y operación reforzada</span></p>{% endif %}
+{% if pdf_url %}<p class="cta"><a class="pdfbtn" href="{{ pdf_url }}">Descargar el informe completo en PDF{% if npag %} · {{ npag }} páginas{% endif %}</a> <span class="sub" style="color:var(--muted);font-size:13px">{% if res.provisional %}edición provisional: el I3 se añade cuando REE lo publica{% else %}incluye I3 por tecnología, restricciones técnicas y operación reforzada{% endif %}</span></p>{% endif %}
 
 <section id="calor">
   <h2>{{ t.h_calor }}</h2>
@@ -160,16 +165,48 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 </section>
 {% endif %}
 
+{% if res.mix %}
+<section id="mix">
+  <h2>Mix de generación: las renovables cubrieron el {{ res.mix.renovable_pct|n(1) }} %</h2>
+  <p>Entre el {{ res.mix.renovable_min|n(0) }} % y el {{ res.mix.renovable_max|n(0) }} % según el momento.{% if res.mix.horas_ren_demanda == res.mix.horas_ren_demanda %} Durante {{ res.mix.horas_ren_demanda|n(1) }} h la generación renovable superó a toda la demanda peninsular: horas en las que sobra energía y una batería carga barato.{% endif %}{% if res.mix.saldo_intercambios_gwh is defined %} Saldo con el exterior: {{ 'exportación' if res.mix.saldo_intercambios_gwh < 0 else 'importación' }} neta de {{ res.mix.saldo_intercambios_gwh|abs|n(0) }} GWh.{% endif %}</p>
+  <div class="graf"><div id="g_mix"></div></div>
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Tecnología</th><th>GWh</th><th>% de la generación</th></tr></thead>
+    <tbody>{% for k, v in res.mix.gwh.items() %}{% if v > 0.05 %}<tr><td>{{ res.mix.nombres.get(k, k) }}{% if k in res.mix.renovables %} · renovable{% endif %}</td><td>{{ v|n(0) }}</td><td>{{ res.mix.cuota[k]|n(1) }} %</td></tr>{% endif %}{% endfor %}</tbody>
+  </table></div>
+  <p class="nota" style="margin-top:14px">Generación peninsular en tiempo real (ESIOS). Hidráulica convencional = hidráulica neta − turbinación − consumo de bombeo; la turbinación de bombeo cuenta como no renovable.</p>
+</section>
+{% endif %}
+
+{% if res.baterias or res.i3_resumen %}
+<section id="baterias-sistema">
+  <h2>Qué hicieron las baterías del sistema</h2>
+  {% if res.baterias %}<p>El parque peninsular cargó {{ res.baterias.mwh_carga|n(0) }} MWh y entregó {{ res.baterias.mwh_entrega|n(0) }} MWh (rendimiento aparente {{ res.baterias.rendimiento|n(0) }} %). Cargó de media a {{ res.baterias.precio_carga|n(1) }} €/MWh y descargó a {{ res.baterias.precio_descarga|n(1) }} €/MWh: un spread capturado de {{ res.baterias.spread|n(1) }} €/MWh. Potencia máxima observada: {{ res.baterias.mw_max_entrega|n(0) }} MW entregando y {{ res.baterias.mw_max_carga|n(0) }} MW cargando.</p>
+  <div class="graf"><div id="g_bat"></div></div>{% endif %}
+  {% if res.i3_resumen %}{% set g = res.i3_resumen['Almacenamiento generación'] %}{% set c = res.i3_resumen['Almacenamiento consumo'] %}
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Según la liquidación (I3)</th><th>Energía final (P48)</th><th>Importe</th><th>€/MWh</th></tr></thead>
+    <tbody>
+      <tr><td>Venta (almacenamiento generación)</td><td>{{ g.p48_mwh|n(0) }} MWh</td><td>{{ g.ingreso|n(0) }} €</td><td>{{ res.i3_resumen.precio_venta|n(1) }}</td></tr>
+      <tr><td>Compra (almacenamiento consumo)</td><td>{{ c.p48_mwh|abs|n(0) }} MWh</td><td>{{ c.ingreso|n(0) }} €</td><td>{{ res.i3_resumen.precio_compra|n(1) }}</td></tr>
+    </tbody></table></div>
+  <p class="nota">En el I3, «almacenamiento consumo» suma más energía que la que cargan las baterías en tiempo real; por eso no se resta compra de venta ni se da un resultado neto.</p>{% else %}<p class="nota">La liquidación por mercado (I3) de las baterías se añade cuando REE la publica, hacia el viernes.</p>{% endif %}
+  <p class="nota" style="margin-top:14px">Tiempo real: indicadores 2166 (carga) y 2167 (entrega) de ESIOS, valorados al precio del diario. No es la liquidación: esa sale del I3.</p>
+</section>
+{% endif %}
+
 <section id="tendencia">
-  <h2>{{ t.h_tend }}</h2>
+  {% if charts.g_hist %}<h2>La semana en perspectiva</h2>
+  <p>Cada semana calculada con el mismo método: precio medio, techo de arbitraje de una batería de 4 h y captura de la solar. Lo que paga a una batería es la forma del día, no el nivel del precio.</p>
+  <div class="graf"><div id="g_hist"></div></div>{% else %}<h2>{{ t.h_tend }}</h2>
   <p>Evolución de las últimas semanas. El precio medio y el techo de arbitraje no siempre se mueven juntos: lo que paga la batería es la forma del día, no su nivel.</p>
-  <div class="graf"><div id="g_tend"></div></div>
+  <div class="graf"><div id="g_tend"></div></div>{% endif %}
 </section>
 
 {% if esenciales %}
 <section id="almacenamiento">
   <h2>Más para almacenamiento: servicios de balance, duración y renta de cada tecnología</h2>
-  <p>Lo que completa el arbitraje del diario: qué paga la banda de aFRR frente a arbitrar, cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario y cómo le va a cada tecnología según la liquidación (I3).</p>
+  <p>Lo que completa el arbitraje del diario: cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario{% if res.series.afrr_banda_p_subir is defined and res.series.afrr_banda_p_subir.notna().mean() > 0.3 %}, qué paga la banda de aFRR frente a arbitrar{% endif %}{% if not res.provisional %} y cómo le va a cada tecnología según la liquidación (I3){% endif %}.</p>
   {% for p in esenciales %}<figure class="pag"><img loading="lazy" decoding="async" src="{{ base }}paginas/{{ p.img }}" alt="{{ p.titulo }}" width="1333" height="750"><figcaption>{{ p.titulo }}</figcaption></figure>{% endfor %}
 </section>
 {% endif %}
@@ -183,7 +220,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
     </tbody></table></div>
   {% for k, m in meta.items() %}{% if m.get('aviso') %}<p class="nota">Aviso en {{ m.nombre }}: {{ m.aviso }}</p>{% endif %}{% endfor %}
   <p class="nota" style="margin-top:14px">Los precios son cuartohorarios (el mercado diario es de 15 minutos desde el 1 de octubre de 2025). Cuando una serie llega con resolución horaria, su valor se repite en los cuatro cuartos. Las horas son locales; los días de cambio de hora tienen 92 o 100 cuartos. Los datos son los publicados en el momento de generar el informe, y ESIOS puede revisarlos después.</p>
-  <p class="nota">Las páginas de liquidación por tecnología y restricciones técnicas salen del I3 de REE, que se publica con unos cuatro días de retraso; el informe completo en PDF las incluye todas.</p>
+  <p class="nota">Las páginas de liquidación por tecnología y restricciones técnicas salen del I3 de REE, que se publica con unos cuatro días de retraso (D+4). El lunes sale una edición provisional y el informe se regenera solo, con todas las secciones, cuando el I3 de la semana está completo.</p>
 </section>
 </main>
 </div>
