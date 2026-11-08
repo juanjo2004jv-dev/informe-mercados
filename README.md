@@ -12,14 +12,21 @@ Fuentes públicas: ESIOS (REE) —indicadores e I3— y OMIE (vía ESIOS). Marca
 - **Baterías del sistema**: qué cargaron y entregaron las baterías reales, a qué precio y con qué spread; y su liquidación en el I3.
 - **Sector por tecnología (I3)**: energía, ingreso y precio capturado por mercado (solar, eólica, almacenamiento…).
 - **Restricciones técnicas (I3)**: cascada de programas PBF → P48, recortes de renovables, fases y tipologías, COT/SOT y Operación Reforzada.
-- **Lectura propia para BESS**: mapa de precios, techo de arbitraje (1/2/4/6 h), curva de duración, banda aFRR frente a arbitraje,
-  primas de cada mercado por hora, captura solar y eólica, canibalización, demanda residual e **histórico semanal** desde 2025.
+- **Lectura propia para BESS**: mapa de precios, techo de arbitraje (1/2/4/6 h), **techo con diario + intradiarios (IDA1-3)**,
+  **spreads TB1/TB2/TB4**, curva de duración, banda aFRR frente a arbitraje, primas de cada mercado por hora, captura solar y eólica,
+  canibalización, demanda residual, **comparación con la misma semana del año anterior**, **techo acumulado en el año** e
+  **histórico semanal** desde 2025.
 
 ## Calendario (automático)
-- **Lunes 07:00-08:00 (Madrid)**: edición **provisional** de la semana anterior (todo menos el I3, que REE publica a D+4).
+- **Lunes 07:00-08:00 (Madrid)**: edición **provisional** de la semana anterior: mercados, balance, mix y baterías completos;
+  las secciones del I3 (que REE publica a D+4) salen con la **última semana completa**, rotuladas como tal.
 - **Martes a sábado** a la misma hora: si la semana está provisional y el I3 de los siete días ya está publicado, el informe se
-  **regenera solo** con todas las secciones (normalmente el viernes). Si ya está completa, no hace nada.
+  **regenera solo** con el I3 de la semana (normalmente jueves o viernes). Si ya está completa, no hace nada.
+- Si REE publica algún día del I3 **sin precios** (pasó el 1-nov-2026), el almacén vuelve a descargarlo cada día durante 3 semanas
+  y la semana afectada se regenera sola cuando REE lo completa (sin tocar la portada si ya hay una semana más reciente).
+- Cada diapositiva va protegida: si una falla por un dato raro, se omite, se anota en «Cómo leer este informe» y el resto sale.
 - Si una ejecución falla, la siguiente lo vuelve a intentar. GitHub avisa por correo al dueño del repositorio de los fallos.
+- Cada ejecución deja un resumen (páginas, cobertura, estado del I3, avisos) en la página del workflow.
 
 ## Puesta en marcha (una sola vez)
 1. Repositorio público en GitHub con este contenido (incluida la carpeta `.github`).
@@ -34,6 +41,9 @@ Fuentes públicas: ESIOS (REE) —indicadores e I3— y OMIE (vía ESIOS). Marca
 Resultados: `https://TU_USUARIO.github.io/informe-mercados/` (web), `/ultimo.pdf` (PDF) y `/archivo.html` (semanas anteriores).
 
 ## Herramientas
+- **Ensayo (sin publicar)**: genera el informe con datos reales pero sin tocar la web ni el historial; admite la semana en curso
+  (`actual`). Deja el PDF y la web en `data/ensayo/`. Útil para comprobar cambios antes del lunes.
+- **Histórico semanal** con «recalcular»: rehace todas las semanas (p. ej. tras añadir una columna).
 - **Auditoría de fuentes** (`src/auditoria.py`): vuelca datos crudos de ESIOS (los IDs que se le pidan) y zips del I3 en
   `data/auditoria/` para validar unidades, resolución y zona fuera de GitHub.
 - **Descubrir / Volcar indicadores**: buscar IDs de ESIOS.
@@ -43,8 +53,9 @@ Resultados: `https://TU_USUARIO.github.io/informe-mercados/` (web), `/ultimo.pdf
 - Datos **crudos** de ESIOS agregados en local (ESIOS suma por defecto al agrupar).
 - Energías (MWh por periodo) → MW medios; series de 5 minutos → media del cuarto de hora; zona España (3) o Península (8741).
 - I3: cada valor en el periodo que dice su cabecera; precios ESIOS alineados por fecha y hora.
-- Banda aFRR: precio 2130/634 y asignada 632/633. ESIOS no las publicó entre el 25-oct y el 4-nov-2026; esos días quedan sin
-  dato (el respaldo 10388/10463 publicó cifras que no son €/MW y se descartan).
+- Banda aFRR: precio 2130/634 y asignada 632/633. ESIOS no las publicó entre el 25-oct y el 4-nov-2026 y el 10388 llevó esos días
+  el **coste** de la reserva (€, = ID 712). Esos días el precio se **estima** como coste (712/2127) ÷ banda requerida (630/631),
+  marcado como estimado en el PDF y la web (error medio < 1 % comprobado con los días con dato oficial).
 - Dependencias con versión fijada en `requirements.txt` (probadas): una versión nueva no puede romper el informe del lunes.
 
 ## Limitaciones honestas
