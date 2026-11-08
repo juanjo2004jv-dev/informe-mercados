@@ -343,7 +343,7 @@ def tabla_mercados(d, res, cfg):
     stats("Mercado diario", "Precio", "€/MWh", res["spot"])
     for k, v in cfg.get("opcionales", {}).items():
         s = res["series"].get(k)
-        mag = {"precio": "Precio", "banda_precio": "Precio banda", "banda_mw": "Banda asignada",
+        mag = {"precio": "Precio", "banda_precio": "Precio banda", "banda_mw": "Banda (MW)",
                "energia": "Energía", "potencia": "Generación"}.get(v.get("tipo"), "")
         stats(v["nombre"], mag, v.get("unidad", ""), s, total=v.get("tipo") in ("energia", "potencia"))
     for k, nom in (("demanda_real", "Demanda real"), ("demanda_prevista", "Demanda prevista"), ("demanda_programada", "Demanda programada")):
@@ -381,9 +381,9 @@ def tendencia(d, res, t):
     ax.set_ylabel("€/MW·día")
     ax.set_xticks(x)
     ax.set_xticklabels([v["corta"] for v in s])
-    ax.set_ylim(0, max(v["bess_dia"] for v in s) * 1.25)
+    ax.set_ylim(0, np.nanmax([v["bess_dia"] for v in s] + [1.0]) * 1.25)
     ax2 = ax.twinx()
-    ax2.set_ylim(0, max(v["precio_medio"] for v in s) * 1.25)
+    ax2.set_ylim(0, np.nanmax([v["precio_medio"] for v in s] + [1.0]) * 1.25)
     ax2.plot(x, [v["precio_medio"] for v in s], color=C["verde"], lw=3, marker="o", label="Precio medio (€/MWh)")
     ax2.set_ylabel("€/MWh")
     ax2.spines["top"].set_visible(False)
@@ -414,7 +414,7 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
     if i3_estado:
         fig.text(0.06, 0.09, textwrap.fill("Estado del I3: " + " ".join(i3_estado), 170), fontsize=8.5, color=C["gris"], va="top")
     d.guardar(fig)
-    fig = d.diapositiva("Series utilizadas y su cobertura", fuente="Cobertura = porcentaje de cuartos de hora de la semana con dato. Una cobertura baja suele ser un indicador que ESIOS publica con retraso.")
+    fig = d.diapositiva("Series utilizadas y su cobertura", fuente="Cobertura = porcentaje de cuartos de hora de la semana con dato. El IDA3 cubre por diseño solo de 12:00 a 24:00 (≈ 50 %); en el resto, una cobertura baja es un día que el mercado no se celebró o que ESIOS aún no ha publicado.")
     y = 0.80
     cob = list(res["cobertura"].items())
     mitad = (len(cob) + 1) // 2
@@ -456,7 +456,7 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     lineas_tipo(d, res, cfg, "energia", "Energía casada",
                 "Energía casada en cada cuarto de hora, leída como potencia. En MWh por cuarto de hora todas las cifras saldrían divididas entre cuatro. "
                 "La energía de cada mercado no se puede sumar entre sí: lo vendido en el diario y recomprado en un intradiario aparecería dos veces.", "MW")
-    lineas_tipo(d, res, cfg, "banda_mw", "Banda de aFRR contratada", "Potencia reservada en cada sentido.", "MW")
+    lineas_tipo(d, res, cfg, "banda_mw", "Banda de aFRR: asignada y requerida", "Potencia reservada en cada sentido (asignada, ID 632/633) y la que pide REE (requerida, ID 630/631).", "MW")
     demanda(d, res, t)
     tabla_mercados(d, res, cfg)
     ok3 = i3 is not None and len(i3) > 0
