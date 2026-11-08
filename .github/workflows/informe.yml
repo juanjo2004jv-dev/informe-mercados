@@ -2,9 +2,11 @@ name: Informe semanal
 
 on:
   schedule:
-    # Lunes y martes a las 06:00 UTC (07:00-08:00 en España).
-    # El I3 de REE se publica con ~4 días de retraso: el domingo ya está el jueves, así que el lunes la semana anterior está completa. El martes es un reintento (si ya salió bien, no hace nada).
-    - cron: "0 6 * * 1,2"
+    # De lunes a sábado a las 06:00 UTC (07:00-08:00 en España).
+    # Lunes: edición provisional con mercados, balance, mix y baterías (el I3 de REE llega a D+4: el del
+    # domingo, el jueves). Martes a sábado: si la semana salió provisional y el I3 ya está completo, se
+    # regenera entera; si ya está completa, no hace nada. Si el lunes falla, el martes la genera.
+    - cron: "0 6 * * 1-6"
   workflow_dispatch:
     inputs:
       semana:
@@ -73,5 +75,8 @@ jobs:
             echo "Sin cambios que publicar."
           else
             git commit -m "Informe automático $(date -u +%F)"
-            git push
+            for i in 1 2 3; do
+              git pull --rebase --autostash && git push && break
+              echo "Reintento del push ($i)…"; sleep 10
+            done
           fi
