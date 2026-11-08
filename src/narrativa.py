@@ -158,6 +158,8 @@ def redactar(res):
     if d:
         t["h_dem"] = f"La demanda alcanzó {n(d['pico'], 0)} MW el {DIAS_LARGO[d['pico_t'].weekday()]} {d['pico_t'].day} a las {d['pico_t'].strftime('%H:%M')}"
         t["p_dem"] = f"Media semanal de {n(d['media'], 0)} MW y valle de {n(d['valle'], 0)} MW."
+        if d.get("hueco_txt"):
+            t["p_dem"] += f" ESIOS no publicó la demanda real {d['hueco_txt']}."
         if "mape" in d:
             t["p_dem"] += f" El error medio de la previsión fue del {n(d['mape'], 2)} %."
     return t
