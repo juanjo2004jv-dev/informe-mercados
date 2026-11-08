@@ -1,6 +1,7 @@
 """Construye los gráficos (Plotly, como JSON) y renderiza la plantilla HTML."""
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import numpy as np
@@ -143,6 +144,57 @@ def graficos(res):
         ch["g_merc"] = {"data": tr, "layout": {"height": 330, "margin": {"l": 52, "r": 10, "t": 8, "b": 40},
                         "xaxis": {"tickvals": tv, "ticktext": tt}, "yaxis": {"title": {"text": "€/MWh"}},
                         "legend": {"orientation": "h", "y": -0.25}}}
+
+    # --- mix de generación (apilado, GW)
+    m = res.get("mix")
+    if m:
+        from .extras import COL_MIX, ORDEN_MIX
+
+        g = m["series"]
+        tv, tt = _eje_semana(g.index)
+        tr = []
+        for k in [k for k in ORDEN_MIX if k in g.columns and g[k].fillna(0).sum() > 0]:
+            tr.append({"type": "scatter", "mode": "lines", "stackgroup": "g", "name": m["nombres"].get(k, k), "x": list(range(len(g))),
+                       "y": _l((g[k].fillna(0) / 1000).values), "line": {"width": 0, "color": COL_MIX.get(k)}, "fillcolor": COL_MIX.get(k),
+                       "hovertemplate": "%{y:.1f} GW<extra>" + m["nombres"].get(k, k) + "</extra>"})
+        dem = res["series"].get("demanda_real")
+        if dem is not None and dem.notna().mean() > 0.5:
+            tr.append({"type": "scatter", "mode": "lines", "name": "Demanda", "x": list(range(len(g))), "y": _l((dem / 1000).values),
+                       "line": {"color": "#13212c", "width": 1.4, "dash": "dash"}})
+        ch["g_mix"] = {"data": tr, "layout": {"height": 340, "margin": {"l": 52, "r": 10, "t": 8, "b": 40},
+                       "xaxis": {"tickvals": tv, "ticktext": tt}, "yaxis": {"title": {"text": "GW"}},
+                       "legend": {"orientation": "h", "y": -0.22}, "hovermode": "x unified"}}
+
+    # --- baterías del sistema: perfil medio de carga/entrega frente al precio
+    b = res.get("baterias")
+    if b:
+        pn, pa = b["perfil_neto"], res["perfil_act"]
+        ch["g_bat"] = {"data": [
+            {"type": "bar", "name": "Entrega (MW)", "x": _l(list(pn.index / 60)), "y": _l(pn.clip(lower=0).values), "marker": {"color": "#5F8D4E"}},
+            {"type": "bar", "name": "Carga (MW)", "x": _l(list(pn.index / 60)), "y": _l(pn.clip(upper=0).values), "marker": {"color": "#b23a48"}},
+            {"type": "scatter", "mode": "lines", "name": "Precio diario (€/MWh)", "x": _l(list(pa.index / 60)), "y": _l(pa.values),
+             "yaxis": "y2", "line": {"color": "#1f7a8c", "width": 2.5}},
+        ], "layout": {"height": 300, "barmode": "relative", "margin": {"l": 52, "r": 56, "t": 8, "b": 40},
+                      "xaxis": {"tickvals": list(range(0, 24, 3)), "ticktext": [f"{h:02d}h" for h in range(0, 24, 3)]},
+                      "yaxis": {"title": {"text": "MW medios"}},
+                      "yaxis2": {"overlaying": "y", "side": "right", "showgrid": False, "title": {"text": "€/MWh"}},
+                      "legend": {"orientation": "h", "y": -0.22}}}
+
+    # --- histórico semanal
+    h = res.get("historico")
+    if h is not None and len(h) >= 3:
+        h = h.sort_values("lunes").tail(60)
+        et = h["etiqueta"].tolist()
+        ch["g_hist"] = {"data": [
+            {"type": "bar", "name": "Techo arbitraje 4 h (€/MW·día)", "x": et, "y": _l(h["bess_4h"].values), "marker": {"color": "#d9902f"}, "opacity": 0.8, "yaxis": "y2"},
+            {"type": "scatter", "mode": "lines+markers", "name": "Precio medio (€/MWh)", "x": et, "y": _l(h["precio_medio"].values),
+             "line": {"color": "#1f7a8c", "width": 2.5}, "marker": {"size": 4}},
+            {"type": "scatter", "mode": "lines", "name": "Captura solar (% del medio)", "x": et, "y": _l(h["ratio_fv"].values),
+             "line": {"color": "#b9751a", "width": 1.6, "dash": "dot"}},
+        ], "layout": {"height": 320, "margin": {"l": 52, "r": 56, "t": 8, "b": 60},
+                      "yaxis": {"title": {"text": "€/MWh · %"}},
+                      "yaxis2": {"overlaying": "y", "side": "right", "showgrid": False, "title": {"text": "€/MW·día"}, "rangemode": "tozero"},
+                      "xaxis": {"tickangle": -45}, "legend": {"orientation": "h", "y": -0.32}}}
     return ch
 
 
@@ -185,7 +237,7 @@ def render(res, cfg, meta, demo=False, base="", paginas=None, pdf_url=None, npag
     return tpl.render(
         res=res, t=textos, charts=graficos(res), cfg=cfg, meta=meta, demo=demo,
         rango=rango(res), semana_num=semana_num, anio=res["etiqueta"].split("-")[0],
-        generado=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        generado=datetime.now(ZoneInfo(TZ)).strftime("%d/%m/%Y %H:%M"),
         bat=cfg["bateria"], base=base,
         esenciales=_esenciales(paginas), npag=npag, pdf_url=pdf_url,
     )
