@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   diag:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # misma imagen que el informe semanal
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
