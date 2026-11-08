@@ -50,29 +50,48 @@ def precio_capturado(d, i3, rango):
                         "Lo que cada tecnología cobra de media en cada mercado. Sale del I3, que llega a los cuatro días: hace falta la energía y el ingreso "
                         "mercado a mercado, y el panel en vivo no lo da. Donde la compra y la venta casi se cancelan no se muestra precio.",
                         FUENTE_I3.format(rango=rango))
-    ax = d.eje(fig, caja=[0.2, 0.19, 0.74, 0.53])
-    ax.grid(axis="x", color=C["linea"], lw=0.7)
-    ax.grid(axis="y", visible=False)
-    h = 0.8 / len(MERCADOS)
-    for j, m in enumerate(MERCADOS):
-        for i, t in enumerate(tecs):
+    # tabla de calor: una fila por tecnología y una columna por mercado (antes, barras horizontales
+    # de 8 colores por tecnología que no se podían leer)
+    M = np.full((len(tecs), len(MERCADOS)), np.nan)
+    for i_, t in enumerate(tecs):
+        for j_, m in enumerate(MERCADOS):
             if (t, m) not in e.index:
                 continue
-            en, ing = e.loc[(t, m), "energia"] if "energia" in e.columns else 0, e.loc[(t, m), "ingreso"] if "ingreso" in e.columns else 0
-            if abs(en) < 100 or abs(en) < 0.35 * float(bruto.get((t, m), 0)):
+            en = e.loc[(t, m), "energia"] if "energia" in e.columns else 0
+            ing = e.loc[(t, m), "ingreso"] if "ingreso" in e.columns else 0
+            if abs(en) < 100 or abs(en) < 0.35 * float(bruto.get((t, m), 0)) or ing == 0:
                 continue
             p = ing / en
-            if abs(p) > 900:
-                continue
-            ax.barh(i + (j - len(MERCADOS) / 2) * h + h / 2, p, height=h * 0.9, color=COL_MERC[m], label=m if i == 0 or t == tecs[0] else None)
+            if abs(p) <= 900:
+                M[i_, j_] = p
+    from matplotlib.colors import TwoSlopeNorm
+
+    ref = np.nanmedian(M[:, 0]) if np.isfinite(M[:, 0]).any() else np.nanmedian(M)
+    ref = ref if np.isfinite(ref) else 100.0
+    lo, hi = np.nanmin(M) if np.isfinite(M).any() else 0, np.nanmax(M) if np.isfinite(M).any() else 1
+    norm = TwoSlopeNorm(vcenter=ref, vmin=min(lo, ref - 1), vmax=max(hi, ref + 1))
+    ax = fig.add_axes([0.21, 0.10, 0.74, 0.64])
+    cmap = __import__("matplotlib").colormaps["RdYlGn"].copy()
+    cmap.set_bad(C["fondo"])
+    ax.imshow(np.ma.masked_invalid(M), aspect="auto", cmap=cmap, norm=norm, alpha=0.75)
+    for i_ in range(M.shape[0]):
+        for j_ in range(M.shape[1]):
+            v = M[i_, j_]
+            ax.text(j_, i_, "·" if np.isnan(v) else n(v, 0), ha="center", va="center", fontsize=8.5,
+                    color=C["gris"] if np.isnan(v) else C["tinta"], fontweight="bold" if tecs[i_].startswith("Almacenamiento") else None)
+    ax.set_xticks(range(len(MERCADOS)))
+    ax.set_xticklabels([m.replace("Intradiario ", "ID").replace("Restricciones ", "Restr. ") for m in MERCADOS], fontsize=9)
+    ax.xaxis.tick_top()
     ax.set_yticks(range(len(tecs)))
     ax.set_yticklabels(tecs, fontsize=9)
-    ax.invert_yaxis()
-    ax.axvline(0, color=C["gris"], lw=0.8)
-    ax.set_xlabel("€/MWh capturados")
-    hs, ls = ax.get_legend_handles_labels()
-    vistos = dict(zip(ls, hs))
-    ax.legend(vistos.values(), vistos.keys(), ncol=8, loc="upper center", bbox_to_anchor=(0.45, -0.09), frameon=False, fontsize=8)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.set_xticks(np.arange(-0.5, len(MERCADOS)), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(tecs)), minor=True)
+    ax.grid(which="minor", color=C["fondo"], linewidth=2)
+    ax.tick_params(which="both", length=0)
+    fig.text(0.21, 0.07, textwrap.fill(f"€/MWh. Verde: por encima de la mediana del diario ({n(ref, 0)} €/MWh); rojo: por debajo. «·» = sin energía suficiente o compra y venta "
+             "casi canceladas. En consumo (bombeo, almacenamiento) la cifra es lo que pagó por MWh.", 160), fontsize=7.5, color=C["gris"], va="top")
     d.guardar(fig)
 
 
