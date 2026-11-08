@@ -85,3 +85,28 @@ opcionales:
   afrr_energia_act_bajar: {id: 681, provisional: true, palabras: [secundaria], nombre: aFRR energía activada a bajar, unidad: MW, tipo: energia}
   mfrr_asig_subir: {id: 675, provisional: true, palabras: [mfrr], nombre: mFRR asignación a subir (AP), unidad: MW, tipo: energia}
   mfrr_asig_bajar: {id: 674, provisional: true, palabras: [mfrr], nombre: mFRR asignación a bajar (AP), unidad: MW, tipo: energia}
+
+# ---------- Mix de generación peninsular en tiempo real (MW, 5 min) ----------
+# Comprobado (semana 44): generación + intercambios + enlace balear + baterías cierra con la demanda
+# real con un -0,7 %. La hidráulica (546) viene en NETO con el bombeo: src/analisis.py le resta la
+# turbinación (2079) y el consumo de bombeo (2078) para obtener la hidráulica convencional (renovable).
+mix:
+  hidraulica: {id: 546,  nombre: Hidráulica, renovable: true}
+  eolica:     {id: 551,  nombre: Eólica, renovable: true}
+  solar_fv:   {id: 1295, nombre: Solar fotovoltaica, renovable: true}
+  solar_ter:  {id: 1294, nombre: Solar térmica, renovable: true}
+  term_ren:   {id: 1296, nombre: Térmica renovable, renovable: true}
+  nuclear:    {id: 549,  nombre: Nuclear, renovable: false}
+  ciclo:      {id: 550,  nombre: Ciclo combinado, renovable: false}
+  carbon:     {id: 547,  nombre: Carbón, renovable: false}
+  fuel_gas:   {id: 548,  nombre: Fuel-gas, renovable: false}
+  cogen:      {id: 1297, nombre: Cogeneración y resto, renovable: false}
+  vapor:      {id: 2344, nombre: Turbina de vapor, renovable: false}
+# Flujos que no son generación (se analizan aparte)
+balance:
+  turb_bombeo:   {id: 2079, nombre: Turbinación bombeo}
+  cons_bombeo:   {id: 2078, nombre: Consumo bombeo}
+  intercambios:  {id: 553,  nombre: Saldo de intercambios internacionales}
+  enlace_balear: {id: 554,  nombre: Enlace balear}
+  bat_carga:     {id: 2166, nombre: Baterías · carga}
+  bat_entrega:   {id: 2167, nombre: Baterías · entrega}
