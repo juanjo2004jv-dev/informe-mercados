@@ -17,7 +17,7 @@ from . import analisis as A
 RAIZ = Path(__file__).resolve().parent.parent
 ARCH = RAIZ / "data" / "historico_semanal.csv"
 COLS = ["etiqueta", "lunes", "precio_medio", "precio_min", "precio_max", "horas_neg", "spread_medio",
-        "bess_1h", "bess_2h", "bess_4h", "captura_fv", "ratio_fv", "captura_eol", "ratio_eol",
+        "bess_1h", "bess_2h", "bess_4h", "tb1", "tb2", "tb4", "captura_fv", "ratio_fv", "captura_eol", "ratio_eol",
         "gen_fv_gwh", "gen_eol_gwh", "demanda_gwh", "renovable_pct", "cobertura_spot"]
 
 
@@ -37,6 +37,8 @@ def kpis(lunes, spot, fv, eol, dem, bat):
         b = A.bess_por_dia(spot, dict(bat, horas=h))
         v = [x[0] for x in b.values() if not np.isnan(x[0])]
         r[f"bess_{h}h"] = float(np.mean(v)) if v else np.nan
+    for k, v in A.spreads_tb(spot).items():
+        r[f"tb{k}"] = v
     for k, g in (("fv", fv), ("eol", eol)):
         if g is not None and g.notna().mean() > 0.5:
             c = A.captura(spot, g)
@@ -46,6 +48,32 @@ def kpis(lunes, spot, fv, eol, dem, bat):
     if dem is not None and dem.notna().mean() > 0.5:
         r["demanda_gwh"] = float(dem.sum() / 4 / 1000)
     return r
+
+
+def comparativa(df, lunes):
+    """Misma semana ISO del año anterior y techo de arbitraje acumulado en el año (4 h, €/MW)."""
+    if df is None or not len(df):
+        return None
+    h = df.copy()
+    h["lunes"] = pd.to_datetime(h["lunes"])
+    iso = lunes.isocalendar()
+    out = {}
+    prev = h[h["etiqueta"] == f"{iso.year - 1}-S{iso.week:02d}"]
+    if len(prev):
+        out["anterior"] = {k: (float(prev.iloc[0][k]) if k in prev and pd.notna(prev.iloc[0][k]) else np.nan)
+                           for k in ("precio_medio", "bess_4h", "ratio_fv", "horas_neg", "spread_medio", "tb4", "renovable_pct")}
+        out["anterior"]["etiqueta"] = f"{iso.year - 1}-S{iso.week:02d}"
+    sem = h["etiqueta"].str[-2:].astype(int)
+    anio = h["etiqueta"].str[:4].astype(int)
+    este = h[(anio == iso.year) & (sem <= iso.week)]
+    pasado = h[(anio == iso.year - 1) & (sem <= iso.week)]
+    if len(este):
+        out["ytd"] = float(este["bess_4h"].sum() * 7)
+        out["ytd_semanas"] = int(este["bess_4h"].notna().sum())
+    if len(pasado):
+        out["ytd_prev"] = float(pasado["bess_4h"].sum() * 7)
+        out["ytd_prev_semanas"] = int(pasado["bess_4h"].notna().sum())
+    return out or None
 
 
 def cargar():
@@ -91,8 +119,9 @@ def _serie_tramos(cli, ind, ini, fin, geos=None, dias=31):
     return s[~s.index.duplicated()].sort_index()
 
 
-def reconstruir(desde, hasta, cfg):
-    """Rellena el histórico desde ESIOS para las semanas [desde, hasta] que falten (lunes a lunes)."""
+def reconstruir(desde, hasta, cfg, recalcular=False):
+    """Rellena el histórico desde ESIOS para las semanas [desde, hasta] que falten (lunes a lunes).
+    Con recalcular=True rehace también las que ya están (p. ej. tras añadir una columna)."""
     from .esios import Esios
 
     cli = Esios()
@@ -102,7 +131,7 @@ def reconstruir(desde, hasta, cfg):
         if v.get("id"):
             ids[k] = v["id"]
     df = cargar()
-    hechas = set(df["etiqueta"]) if len(df) else set()
+    hechas = set(df["etiqueta"]) if (len(df) and not recalcular) else set()
     lunes = desde - timedelta(days=desde.weekday())
     semanas = []
     while lunes <= hasta:
@@ -127,7 +156,11 @@ def reconstruir(desde, hasta, cfg):
             continue
         filas.append(kpis(lun, al["spot"], al.get("gen_solar_fv"), al.get("gen_eolica"), al.get("demanda_real"), cfg["bateria"]))
     if filas:
-        df = pd.concat([df, pd.DataFrame(filas)], ignore_index=True)
+        nuevas = pd.DataFrame(filas)
+        if len(df) and "renovable_pct" in df:                      # conservar lo que solo calcula el informe
+            nuevas = nuevas.drop(columns=["renovable_pct"], errors="ignore").merge(
+                df[["etiqueta", "renovable_pct"]], on="etiqueta", how="left")
+        df = pd.concat([df[~df["etiqueta"].isin(nuevas["etiqueta"])] if len(df) else df, nuevas], ignore_index=True)
         _guardar(df)
     print(f"Histórico: {len(df)} semanas.")
     return df
@@ -137,8 +170,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--desde", default="2025-01-06")
     ap.add_argument("--hasta", default=None, help="lunes de la última semana (por defecto, la última completa)")
+    ap.add_argument("--recalcular", action="store_true", help="rehacer también las semanas que ya están")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(RAIZ / "config.yml", encoding="utf-8"))
     hoy = date.today()
     ult = hoy - timedelta(days=hoy.weekday() + 7)
-    reconstruir(date.fromisoformat(a.desde), date.fromisoformat(a.hasta) if a.hasta else ult, cfg)
+    reconstruir(date.fromisoformat(a.desde), date.fromisoformat(a.hasta) if a.hasta else ult, cfg, a.recalcular)
