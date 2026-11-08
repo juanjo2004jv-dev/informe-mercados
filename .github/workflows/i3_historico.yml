@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   i3:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # misma imagen que el informe semanal
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
