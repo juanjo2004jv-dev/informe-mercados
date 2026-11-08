@@ -36,13 +36,33 @@ class Deck:
         self.pdf = PdfPages(ruta)
         self.marca, self.autor, self.periodo = marca, autor, periodo
         self.n = 0
+        self.guardadas = 0
         self.paginas = []
+        self.errores = []
         self.img_dir = None
+
+    def seguro(self, fn, *args, **kw):
+        """Ejecuta una diapositiva sin que un fallo tumbe el informe entero: si falla, se
+        descarta la página a medio hacer, se anota el error y el PDF sigue con la siguiente."""
+        try:
+            return fn(*args, **kw)
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            nombre = getattr(fn, "__name__", str(fn))
+            self.errores.append(f"{nombre}: {type(e).__name__}: {str(e)[:120]}")
+            for num in plt.get_fignums():
+                f = plt.figure(num)
+                if getattr(f, "_n", 0) > self.guardadas:
+                    plt.close(f)
+            self.n = self.guardadas
+            return None
 
     # ---- marcos
     def _fig(self):
         fig = plt.figure(figsize=(W, H), facecolor=C["fondo"])
-        self.n += 1
+        self.n = self.guardadas + 1          # una figura que no se llegó a guardar no consume número
         fig._n = self.n
         return fig
 
@@ -73,6 +93,7 @@ class Deck:
 
     def guardar(self, fig):
         self.pdf.savefig(fig, facecolor=fig.get_facecolor())
+        self.guardadas += 1
         if self.img_dir is not None and es_web(getattr(fig, "_titulo", None)):
             num = getattr(fig, "_n", self.n)
             nombre = f"{num:02d}.webp"
@@ -118,8 +139,12 @@ def portada(d, res, cfg):
     fig.text(0.06, 0.14, "Mercados diario e intradiarios, servicios de balance,\nbaterías y demanda del sistema peninsular",
              fontsize=11, color="#A8C2AB", va="top", linespacing=1.5)
     if res.get("provisional"):
-        fig.text(0.06, 0.25, "EDICIÓN PROVISIONAL · sin liquidación I3", fontsize=11, fontweight="bold", color="#FFD27A")
-        fig.text(0.06, 0.215, "Las secciones del I3 se añaden solas cuando REE lo publica (hacia el viernes).", fontsize=9, color="#C9DCCB")
+        if res.get("i3_anterior"):
+            fig.text(0.06, 0.25, "EDICIÓN PROVISIONAL · I3 de la semana anterior", fontsize=11, fontweight="bold", color="#FFD27A")
+            fig.text(0.06, 0.215, "Se actualiza sola cuando REE publique el I3 de esta semana (jueves o viernes).", fontsize=9, color="#C9DCCB")
+        else:
+            fig.text(0.06, 0.25, "EDICIÓN PROVISIONAL · sin liquidación I3", fontsize=11, fontweight="bold", color="#FFD27A")
+            fig.text(0.06, 0.215, "Las secciones del I3 se añaden solas cuando REE lo publica (entre el jueves y el viernes).", fontsize=9, color="#C9DCCB")
     pie = "Elaboración propia con datos públicos de ESIOS (REE) y OMIE"
     if cfg.get("autor"):
         pie += f" · {cfg['autor']}"
@@ -160,23 +185,33 @@ def resumen(d, res, t):
         fig.text(x + 0.02, 0.655, u, fontsize=9.5, color=C["gris"])
         fig.text(x + 0.02, 0.615, s, fontsize=8.5, color=C["gris"])
     pts = [t["titular"], t["h_calor"] + ". " + t["p_calor"].split(". ")[0] + ".", t.get("p_bess", "")]
+    if t.get("p_mm"):
+        pts.append(t["p_mm"])
     if t.get("p_bat"):
         pts.append(t["p_bat"])
     if t.get("h_solar"):
         pts.append(t["h_solar"] + ".")
     if t.get("h_dem"):
         pts.append(t["h_dem"] + ".")
+    if t.get("p_comp"):
+        pts.append(t["p_comp"] + (" " + t["p_ytd"] if t.get("p_ytd") else ""))
     if res.get("provisional"):
-        fig.text(0.06, 0.555, "Edición provisional: las secciones basadas en la liquidación I3 de REE se añadirán automáticamente cuando se publique (hacia el viernes).",
+        fig.text(0.06, 0.555, ("Edición provisional: las secciones de liquidación (I3) usan la semana anterior y se actualizarán solas cuando REE publique esta (entre el jueves y el viernes)."
+                               if res.get("i3_anterior") else
+                               "Edición provisional: las secciones basadas en la liquidación I3 de REE se añadirán automáticamente cuando se publique (entre el jueves y el viernes)."),
                  fontsize=9.5, color=C["coral"], fontweight="bold")
     y = 0.52
     pts = [p for p in pts if p]
-    fs, ancho, paso = (11.5, 120, 0.036) if len(pts) <= 5 else (10.5, 135, 0.032)
+    # tamaño de letra según cuánto texto haya, para que nunca invada el pie de página
+    for fs, ancho, paso, hueco in ((11.5, 120, 0.036, 0.024), (10.5, 135, 0.032, 0.02), (9.6, 150, 0.029, 0.016), (8.8, 165, 0.026, 0.013)):
+        lineas = sum(textwrap.fill(p, ancho).count("\n") + 1 for p in pts)
+        if 0.52 - (paso * lineas + hueco * len(pts)) > 0.07:
+            break
     for p in pts:
         txt = textwrap.fill(p, ancho)
         fig.add_artist(Circle((0.055, y - 0.004), 0.0045, color=C["coral"], transform=fig.transFigure))
         fig.text(0.07, y + 0.012, txt, fontsize=fs, va="top", linespacing=1.35)
-        y -= paso * (txt.count("\n") + 1) + 0.024
+        y -= paso * (txt.count("\n") + 1) + hueco
     d.guardar(fig)
 
 
@@ -356,8 +391,8 @@ def tabla_mercados(d, res, cfg):
     for k, v in cfg.get("opcionales", {}).items():
         s = res["series"].get(k)
         mag = {"precio": "Precio", "banda_precio": "Precio banda", "banda_mw": "Banda (MW)",
-               "energia": "Energía", "potencia": "Generación"}.get(v.get("tipo"), "")
-        stats(v["nombre"], mag, v.get("unidad", ""), s, total=v.get("tipo") in ("energia", "potencia"))
+               "energia": "Energía", "energia_balance": "Energía balance", "potencia": "Generación"}.get(v.get("tipo"), "")
+        stats(v["nombre"], mag, v.get("unidad", ""), s, total=v.get("tipo") in ("energia", "energia_balance", "potencia"))
     for k, nom in (("demanda_real", "Demanda real"), ("demanda_prevista", "Demanda prevista"), ("demanda_programada", "Demanda programada")):
         stats(nom, "Potencia", "MW", res["series"].get(k), total=(k == "demanda_real"))
     por = 14
@@ -416,7 +451,7 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
         "El coste base de la operación reforzada es un contrafactual, no una liquidación: supone que sin el apagón el control de tensión habría seguido costando lo de los cuatro primeros meses de 2025.",
         "El €/MVArh depende del ángulo entre activa y reactiva, que no es observable. Aquí se ha usado α = 45°.",
         "Techo de arbitraje, ratio de captura y semáforos son cálculos propios de este informe con datos públicos: sirven para comparar semanas, no son ingresos ni recomendaciones.",
-        "Calendario: el lunes se publica la edición provisional (mercados, balance, mix y baterías) y, en cuanto REE publica el I3 de los siete días (D+4, hacia el viernes), el informe se regenera solo con todas las secciones.",
+        "Calendario: el lunes se publica la edición provisional (mercados, balance, mix y baterías completos; las secciones de I3 con la última semana completa) y, en cuanto REE publica el I3 de los siete días (D+4: el del domingo, entre el jueves y el viernes), el informe se regenera solo con todas las secciones de la semana.",
     ]
     y = 0.84
     for p in notas:
@@ -426,6 +461,9 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
         y -= 0.036 * (txt.count("\n") + 1) + 0.022
     if i3_estado:
         fig.text(0.06, 0.09, textwrap.fill("Estado del I3: " + " ".join(i3_estado), 170), fontsize=8.5, color=C["gris"], va="top")
+    if res.get("_errores_pdf"):
+        fig.text(0.06, 0.15, textwrap.fill("Páginas omitidas en esta edición por un dato que no se pudo procesar: " + "; ".join(res["_errores_pdf"]), 170),
+                 fontsize=8.5, color=C["coral"], va="top")
     d.guardar(fig)
     fig = d.diapositiva("Series utilizadas y su cobertura", fuente="Cobertura = porcentaje de cuartos de hora de la semana con dato. El IDA3 cubre por diseño solo de 12:00 a 24:00 (≈ 50 %); en el resto, una cobertura baja es un día que el mercado no se celebró o que ESIOS aún no ha publicado.")
     y = 0.80
@@ -448,7 +486,10 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
 
 # ------------------------------------------------------------------ orquestación
 def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_estado=None, img_dir=None):
-    """i3: tabla I3 de la semana (o None). i3_hist: histórico desde 2025-01-01 (o None)."""
+    """i3: tabla I3 de la semana (o None). i3_hist: histórico desde 2025-01-01 (o None).
+
+    Cada diapositiva va envuelta en Deck.seguro: si una falla (dato raro, serie vacía), se omite
+    esa página, se anota en «Cómo leer este informe» y el informe sale igual."""
     from . import extras as X
     from . import pdf_i3 as P3
 
@@ -456,67 +497,86 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     per = f"semana {res['etiqueta'][-2:]}/{res['etiqueta'][:4]}"
     d = Deck(ruta, cfg.get("marca", "Radar del mercado eléctrico"), cfg.get("autor", ""), per)
     d.img_dir = img_dir
+    S = d.seguro
     dias = pd.DatetimeIndex([pd.Timestamp(x) for x in res["dias"]])
     rango_i3 = f"{res['dias'][0]} a {res['dias'][-1]} (7 días)"
+    ant = bool(res.get("i3_anterior")) and i3 is not None
+    if i3 is not None and len(i3):
+        fi = sorted(pd.to_datetime(i3["fecha"]).dt.date.unique())
+        dias = pd.DatetimeIndex([pd.Timestamp(x) for x in fi])          # los días del I3 (la semana anterior si es provisional)
+        rango_i3 = f"{fi[0]} a {fi[-1]} ({len(fi)} días)" + (" · semana anterior" if ant else "")
+    sub_ant = (f" Edición provisional: se usa el I3 de la semana anterior ({rango_i3.split(' (')[0]}); el de esta semana llega entre el jueves y el viernes "
+               "y el informe se actualiza solo.") if ant else ""
     portada(d, res, cfg)
-    resumen(d, res, t)
-    X.sec_senales(d, res, cfg)
+    S(resumen, d, res, t)
+    S(X.sec_senales, d, res, cfg)
     # ---- 01 mercados
     separador(d, 1, "Los mercados del periodo", "Precio, energía casada, servicios de balance y demanda, cuarto de hora a cuarto de hora.")
-    precios(d, res, cfg)
-    lineas_tipo(d, res, cfg, "banda_precio", "Precio de la banda de aFRR",
-                "La banda se contrata en potencia, no en energía: su precio va en €/MW y por eso no cabe en el mismo eje que el resto.", "€/MW")
-    lineas_tipo(d, res, cfg, "energia", "Energía casada",
-                "Energía casada en cada cuarto de hora, leída como potencia. En MWh por cuarto de hora todas las cifras saldrían divididas entre cuatro. "
-                "La energía de cada mercado no se puede sumar entre sí: lo vendido en el diario y recomprado en un intradiario aparecería dos veces.", "MW")
-    lineas_tipo(d, res, cfg, "banda_mw", "Banda de aFRR: asignada y requerida", "Potencia reservada en cada sentido (asignada, ID 632/633) y la que pide REE (requerida, ID 630/631).", "MW")
-    demanda(d, res, t)
-    X.sec_mix(d, res)
-    tabla_mercados(d, res, cfg)
+    S(precios, d, res, cfg)
+    est = [m["aviso"] for k, m in meta.items() if k.startswith("afrr_banda_p") and "ESTIMAN" in m.get("aviso", "")]
+    res["nota_banda"] = ("Parte de la semana es ESTIMADA: " + est[0].split("; los días ")[-1].rstrip(".") + ".") if est else ""
+    S(lineas_tipo, d, res, cfg, "banda_precio", "Precio de la banda de aFRR",
+      "La banda se contrata en potencia, no en energía: su precio va en €/MW y por eso no cabe en el mismo eje que el resto.", "€/MW",
+      fuente=("Fuente: ESIOS (REE). " + res["nota_banda"]) if res["nota_banda"] else None)
+    S(lineas_tipo, d, res, cfg, "energia", "Energía casada en los mercados",
+      "Energía casada en cada cuarto de hora, leída como potencia (MW medios). La energía de cada mercado no se puede sumar entre sí: "
+      "lo vendido en el diario y recomprado en un intradiario aparecería dos veces.", "MW")
+    S(lineas_tipo, d, res, cfg, "energia_balance", "Servicios de balance: energía activada y asignada",
+      "aFRR activada (lo que la regulación secundaria movió de verdad) y mFRR asignada en activación programada, en MW medios por cuarto de hora. "
+      "Es el volumen que se reparten las unidades que prestan balance, baterías incluidas.", "MW")
+    S(lineas_tipo, d, res, cfg, "banda_mw", "Banda de aFRR: asignada y requerida",
+      "Potencia reservada en cada sentido (asignada, ID 632/633) y la que pide REE (requerida, ID 630/631).", "MW")
+    S(demanda, d, res, t)
+    S(X.sec_mix, d, res)
+    S(tabla_mercados, d, res, cfg)
     ok3 = i3 is not None and len(i3) > 0
     if ok3:
         # ---- 02 sector
-        separador(d, 2, "Sector: la foto por tecnología (I3)", "Qué cobra cada tecnología en cada mercado, con la liquidación publicada por REE.")
-        P3.precio_capturado(d, i3, rango_i3)
-        P3.ingreso_tabla(d, i3, rango_i3)
-        P3.ingreso_dos_escalas(d, i3, rango_i3)
+        separador(d, 2, "Sector: la foto por tecnología (I3)", "Qué cobra cada tecnología en cada mercado, con la liquidación publicada por REE." + sub_ant)
+        S(P3.precio_capturado, d, i3, rango_i3)
+        S(P3.ingreso_tabla, d, i3, rango_i3)
+        S(P3.ingreso_dos_escalas, d, i3, rango_i3)
         for tec, nom in P3.TEC_CLAVE:
-            P3.tecnologia_detalle(d, i3, tec, {"Solar FV": "Solar fotovoltaica"}.get(nom, nom.replace("Almac. gen.", "Almacenamiento generación").replace("Almac. cons.", "Almacenamiento consumo")), dias, rango_i3)
+            S(P3.tecnologia_detalle, d, i3, tec, {"Solar FV": "Solar fotovoltaica"}.get(nom, nom.replace("Almac. gen.", "Almacenamiento generación").replace("Almac. cons.", "Almacenamiento consumo")), dias, rango_i3)
         # ---- 03 restricciones
-        separador(d, 3, "Restricciones técnicas (I3)", "Cómo se mueve la energía entre el programa del mercado y el programa final, y quién paga el control de tensión.")
-        P3.sankey(d, i3, None, "Toda la energía · cascada de programas",
-                  "La cadena de programas del PO 3.1, con el ancho de cada cinta proporcional a la energía. Las restricciones entran dos veces: las del PBF antes de la primera sesión de intradiario "
-                  "y las de tiempo real después. En el conjunto del sistema las dos ramas casi se cancelan: las restricciones no crean ni destruyen energía, la mueven de unas tecnologías a otras.", rango_i3)
-        P3.tabla_recorte(d, i3, rango_i3)
+        separador(d, 3, "Restricciones técnicas (I3)", "Cómo se mueve la energía entre el programa del mercado y el programa final, y quién paga el control de tensión." + sub_ant)
+        S(P3.sankey, d, i3, None, "Toda la energía · cascada de programas",
+          "La cadena de programas del PO 3.1, con el ancho de cada cinta proporcional a la energía. Las restricciones entran dos veces: las del PBF antes de la primera sesión de intradiario "
+          "y las de tiempo real después. En el conjunto del sistema las dos ramas casi se cancelan: las restricciones no crean ni destruyen energía, la mueven de unas tecnologías a otras.", rango_i3)
+        S(P3.tabla_recorte, d, i3, rango_i3)
         for tec, nom in (("Solar fotovoltaica", "Solar fotovoltaica"), ("Eólica", "Eólica"), ("Solar térmica", "Solar térmica")):
-            P3.sankey(d, i3, tec, f"{nom} · cascada de programas",
-                      "La misma cadena para una sola tecnología. Aquí la rama de subir prácticamente no existe: a una renovable las restricciones le quitan energía, casi nunca se la piden.", rango_i3)
-            P3.programa_dia(d, i3, tec, nom, dias, rango_i3)
-        P3.fase_tipologia(d, i3, dias, rango_i3)
-        P3.tabla_fases(d, i3, rango_i3)
-        P3.reparto_tecnologia(d, i3, rango_i3)
-        P3.cot_sot_dia(d, i3, dias, rango_i3)
+            S(P3.sankey, d, i3, tec, f"{nom} · cascada de programas",
+              "La misma cadena para una sola tecnología. Aquí la rama de subir prácticamente no existe: a una renovable las restricciones le quitan energía, casi nunca se la piden.", rango_i3)
+            S(P3.programa_dia, d, i3, tec, nom, dias, rango_i3)
+        S(P3.fase_tipologia, d, i3, dias, rango_i3)
+        S(P3.tabla_fases, d, i3, rango_i3)
+        S(P3.reparto_tecnologia, d, i3, rango_i3)
+        S(P3.cot_sot_dia, d, i3, dias, rango_i3)
         if i3_hist is not None and len(i3_hist):
             f0, f1 = i3_hist["fecha"].min().date(), i3_hist["fecha"].max().date()
-            P3.operacion_reforzada(d, i3_hist, f"{f0} a {f1} ({(f1 - f0).days + 1} días)")
+            S(P3.operacion_reforzada, d, i3_hist, f"{f0} a {f1} ({(f1 - f0).days + 1} días)")
     # ---- 04 lectura propia
     n_sec = 4 if ok3 else 2
     separador(d, n_sec, "Almacenamiento y renovables: lectura propia", "Lo que el mercado dice sobre baterías, solar y servicios de balance, más allá de las liquidaciones.")
-    mapa_calor(d, res)
-    X.sec_duracion_precios(d, res)
-    X.sec_rango_diario(d, res)
-    perfil(d, res)
-    bateria(d, res, cfg, t)
-    X.sec_baterias(d, res)
-    X.sec_duraciones(d, res, cfg)
-    X.sec_banda(d, res, cfg)
-    X.sec_primas(d, res, cfg)
-    captura(d, res, cfg, t)
-    X.sec_canibalizacion(d, res)
-    X.sec_residual(d, res)
-    if not X.sec_historico(d, res):
-        tendencia(d, res, t)
-    X.sec_glosario(d)
+    S(mapa_calor, d, res)
+    S(X.sec_duracion_precios, d, res)
+    S(X.sec_rango_diario, d, res)
+    S(perfil, d, res)
+    S(bateria, d, res, cfg, t)
+    S(X.sec_multimercado, d, res)
+    S(X.sec_baterias, d, res)
+    S(X.sec_duraciones, d, res, cfg)
+    S(X.sec_banda, d, res, cfg)
+    S(X.sec_primas, d, res, cfg)
+    S(captura, d, res, cfg, t)
+    S(X.sec_canibalizacion, d, res)
+    S(X.sec_residual, d, res)
+    if not S(X.sec_historico, d, res):
+        S(tendencia, d, res, t)
+    S(X.sec_glosario, d)
+    res["_errores_pdf"] = list(d.errores)
     metodologia(d, res, cfg, meta, i3_estado)
     d.cerrar()
+    if d.errores:
+        print("AVISO: páginas omitidas por error:\n  " + "\n  ".join(d.errores))
     return d.n, d.paginas
