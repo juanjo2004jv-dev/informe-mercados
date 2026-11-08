@@ -1,0 +1,39 @@
+name: Auditoría de fuentes
+
+# Vuelca datos crudos de ESIOS (sin agregar) y el I3 de unos días en data/auditoria/
+# para validar unidades, resolución temporal y zona de cada serie.
+on:
+  workflow_dispatch:
+    inputs:
+      desde:
+        description: "Desde AAAA-MM-DD"
+        default: "2026-10-12"
+      hasta:
+        description: "Hasta AAAA-MM-DD (excluido)"
+        default: "2026-11-02"
+      i3:
+        description: "Días de I3 a guardar (coma)"
+        default: "2026-10-22,2026-10-28"
+
+permissions:
+  contents: write
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - env:
+          ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
+        run: python -m src.auditoria --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --i3 "${{ inputs.i3 }}"
+      - run: |
+          git config user.name "informe-bot"
+          git config user.email "informe-bot@users.noreply.github.com"
+          git add data
+          git diff --staged --quiet || (git commit -m "Auditoría de fuentes" && git push)
