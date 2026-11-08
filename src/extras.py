@@ -312,17 +312,176 @@ def sec_glosario(d):
         ("aFRR / mFRR", "Reservas de regulación secundaria (automática) y terciaria (manual) que contrata el operador."),
         ("Banda aFRR", "Potencia reservada para regulación secundaria; se paga en €/MW, no en €/MWh."),
         ("COT · SOT", "Restricciones de control de tensión y de sobretensión: se resuelven con máquinas que dan o absorben reactiva."),
-        ("RSI · RTD · SCA · SCB", "Otras tipologías de restricción técnica del I3 (seguridad, red, solución por activación y compensación)."),
+        ("RSI · RTD · SCA · SCB · ASE…", "Códigos de tipología con los que REE identifica en el I3 la causa de cada redespacho; se muestran tal como los publica REE."),
         ("Precio capturado", "Ingreso de una tecnología dividido por su energía: lo que cobra de media por cada MWh que vende."),
         ("Techo de arbitraje", "Ingreso máximo teórico de una batería con previsión perfecta de precios del diario. No es un ingreso real."),
         ("Canibalización", "Caída del precio que cobra una tecnología porque todas producen a la vez (típico de la solar al mediodía)."),
+        ("Spread capturado", "Precio medio de descarga menos precio medio de carga de las baterías, ponderados por su energía."),
+        ("Cuota renovable", "Generación renovable entre generación total peninsular (sin intercambios ni baterías; el bombeo cuenta como no renovable)."),
     ]
     y = 0.84
     for i, (k, v) in enumerate(items):
         col = i % 2
         row = i // 2
         x0 = 0.05 + col * 0.46
-        yy = 0.82 - row * 0.12
+        yy = 0.82 - row * 0.102
         fig.text(x0, yy, k, fontsize=11, fontweight="bold", color=C["coral"])
         fig.text(x0, yy - 0.018, textwrap.fill(v, 62), fontsize=8.8, va="top", color=C["tinta"], linespacing=1.35)
     d.guardar(fig)
+
+
+# ----------------------------------------------------------------- mix, baterías del sistema e histórico
+COL_MIX = {"hidraulica": "#2B6F8F", "eolica": "#5F8D4E", "solar_fv": "#E9B23C", "solar_ter": "#E4572E", "term_ren": "#8FB573",
+           "nuclear": "#6B4A7A", "ciclo": "#8C5A3C", "carbon": "#3B3B3B", "fuel_gas": "#9CA3AF", "cogen": "#B07AA1",
+           "vapor": "#C9A27E", "turb_bombeo": "#7FA7C2"}
+ORDEN_MIX = ["nuclear", "carbon", "fuel_gas", "vapor", "cogen", "ciclo", "turb_bombeo", "term_ren", "hidraulica", "eolica", "solar_ter", "solar_fv"]
+
+
+def sec_mix(d, res):
+    m = res.get("mix")
+    if not m:
+        return False
+    g = m["series"]
+    ks = [k for k in ORDEN_MIX if k in g.columns and g[k].fillna(0).sum() > 0]
+    txt = (f"Las renovables cubrieron el {n(m['renovable_pct'], 1)} % de la generación peninsular (entre el {n(m['renovable_min'], 0)} % y el "
+           f"{n(m['renovable_max'], 0)} % según el momento).")
+    if not np.isnan(m.get("horas_ren_demanda", np.nan)):
+        txt += f" Durante {n(m['horas_ren_demanda'], 1)} h la generación renovable superó a toda la demanda peninsular."
+    if "saldo_intercambios_gwh" in m:
+        s = m["saldo_intercambios_gwh"]
+        txt += f" Saldo con el exterior: {'exportación' if s < 0 else 'importación'} neta de {n(abs(s), 0)} GWh ({n(m['horas_exportando'], 0)} h exportando)."
+    fig = d.diapositiva(f"Mix de generación: renovables al {n(m['renovable_pct'], 0)} %", txt,
+                        "Fuente: ESIOS (REE), generación peninsular en tiempo real (5 min, promediada a 15 min). Hidráulica convencional = hidráulica neta − turbinación − consumo de bombeo; "
+                        "la turbinación de bombeo cuenta como no renovable. Cuota sobre la generación, sin intercambios ni baterías.")
+    ax = d.eje(fig, caja=[0.07, 0.20, 0.56, 0.53])
+    x = np.arange(len(g))
+    base = np.zeros(len(g))
+    for k in ks:
+        v = g[k].fillna(0).values / 1000
+        ax.fill_between(x, base, base + v, color=COL_MIX.get(k, C["gris"]), lw=0, label=m["nombres"].get(k, k))
+        base = base + v
+    dem = res["series"].get("demanda_real")
+    if dem is not None and dem.notna().mean() > 0.5:
+        ax.plot(x, dem.values / 1000, color=C["tinta"], lw=1.3, ls="--", label="Demanda")
+    _ejes_dias(ax, g.index)
+    ax.set_ylabel("GW")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.08), ncol=7, frameon=False, fontsize=7, columnspacing=1.0, handlelength=1.2)
+    # tabla
+    fig.add_artist(Rectangle((0.67, 0.13), 0.285, 0.60, color=C["panel"], transform=fig.transFigure))
+    fig.text(0.685, 0.705, "Energía de la semana", fontsize=11.5, fontweight="bold", color=C["verde"])
+    y = 0.665
+    for k in m["gwh"].index:
+        if m["gwh"][k] <= 0.05:
+            continue
+        fig.add_artist(Rectangle((0.687, y - 0.008), 0.009, 0.016, color=COL_MIX.get(k, C["gris"]), transform=fig.transFigure))
+        fig.text(0.702, y, m["nombres"].get(k, k), fontsize=8.8, va="center")
+        fig.text(0.885, y, f"{n(m['gwh'][k], 0)} GWh", fontsize=8.8, va="center", ha="right")
+        fig.text(0.948, y, f"{n(m['cuota'][k], 1)} %", fontsize=8.8, va="center", ha="right", color=C["verde"] if k in m["renovables"] else C["gris"])
+        y -= 0.036
+    fig.text(0.685, 0.16, f"Renovable: {n(m['renovable_pct'], 1)} %", fontsize=12, fontweight="bold", color=C["musgo"])
+    d.guardar(fig)
+    return True
+
+
+def sec_baterias(d, res):
+    b = res.get("baterias")
+    r3 = res.get("i3_resumen")
+    if not b and not r3:
+        return False
+    partes = []
+    if b:
+        partes.append(f"El parque de baterías peninsular cargó {n(b['mwh_carga'], 0)} MWh y entregó {n(b['mwh_entrega'], 0)} MWh "
+                      f"(rendimiento aparente {n(b['rendimiento'], 0)} %). Cargó de media a {n(b['precio_carga'], 1)} €/MWh y descargó a "
+                      f"{n(b['precio_descarga'], 1)} €/MWh del diario: un spread capturado de {n(b['spread'], 1)} €/MWh.")
+    fig = d.diapositiva("Qué hicieron las baterías del sistema", " ".join(partes) or None,
+                        "Fuente: ESIOS (REE), almacenamiento en tiempo real (2166 carga, 2167 entrega) y, si está publicado, I3 de REE (almacenamiento generación y consumo). "
+                        "Precios de carga y descarga ponderados por la energía con el precio del diario: es una valoración, no la liquidación.")
+    if b:
+        ax = d.eje(fig, caja=[0.07, 0.14, 0.53, 0.58])
+        pn = b["perfil_neto"]
+        hrs = pn.index / 60
+        ax.bar(hrs, pn.clip(lower=0).values, width=0.24, color=C["musgo"], label="Entrega (MW medios)")
+        ax.bar(hrs, pn.clip(upper=0).values, width=0.24, color=C["coral"], label="Carga (MW medios)")
+        ax.axhline(0, color=C["gris"], lw=0.8)
+        ax.set_ylabel("MW (media de la semana por cuarto de hora)")
+        ax.set_xticks(range(0, 24, 2))
+        ax.set_xticklabels([f"{h:02d}h" for h in range(0, 24, 2)])
+        ax.set_xlim(0, 24)
+        ax2 = ax.twinx()
+        pa = res["perfil_act"]
+        ax2.plot(pa.index / 60, pa.values, color=C["tinta"], lw=2, label="Precio diario (€/MWh)")
+        ax2.set_ylabel("€/MWh")
+        ax2.spines["top"].set_visible(False)
+        h1, l1 = ax.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
+        ax.legend(h1 + h2, l1 + l2, loc="upper center", bbox_to_anchor=(0.5, -0.07), ncol=3, frameon=False, fontsize=8.5)
+    fig.add_artist(Rectangle((0.66, 0.14), 0.295, 0.58, color=C["panel"], transform=fig.transFigure))
+    y = 0.695
+    def linea(a, v, neg=False):
+        nonlocal y
+        fig.text(0.675, y, a, fontsize=9, color=C["gris"], va="center")
+        fig.text(0.945, y, v, fontsize=9.5, fontweight="bold", va="center", ha="right", color=C["coral"] if neg else C["verde"])
+        y -= 0.034
+    if b:
+        fig.text(0.675, y, "Tiempo real (ESIOS)", fontsize=11, fontweight="bold", color=C["verde"]); y -= 0.04
+        linea("Energía cargada", f"{n(b['mwh_carga'], 0)} MWh")
+        linea("Energía entregada", f"{n(b['mwh_entrega'], 0)} MWh")
+        linea("Potencia máx. carga / entrega", f"{n(b['mw_max_carga'], 0)} / {n(b['mw_max_entrega'], 0)} MW")
+        linea("Precio medio de carga", f"{n(b['precio_carga'], 1)} €/MWh")
+        linea("Precio medio de descarga", f"{n(b['precio_descarga'], 1)} €/MWh")
+        linea("Spread capturado", f"{n(b['spread'], 1)} €/MWh")
+        linea("Valor a precio del diario", f"{n(b['ingreso_neto'], 0)} €")
+        pmax = max(b["mw_max_entrega"], b["mw_max_carga"])
+        if pmax > 0:
+            linea("Valor por MW (pot. máx.) y día", f"{n(b['ingreso_neto'] / pmax / 7, 0)} €/MW·día")
+            linea("Techo teórico 1 MW / 4 h", f"{n(res['bess_dia'], 0)} €/MW·día")
+    if r3:
+        y -= 0.015
+        fig.text(0.675, y, "Liquidación (I3)", fontsize=11, fontweight="bold", color=C["verde"]); y -= 0.04
+        g, c = r3["Almacenamiento generación"], r3["Almacenamiento consumo"]
+        linea("Energía vendida (P48)", f"{n(g['p48_mwh'], 0)} MWh")
+        linea("Ingreso medio por MWh vendido", f"{n(r3['precio_venta'], 1)} €/MWh")
+        linea("Energía comprada (P48)", f"{n(abs(c['p48_mwh']), 0)} MWh")
+        linea("Coste medio por MWh comprado", f"{n(r3['precio_compra'], 1)} €/MWh", neg=True)
+        y -= 0.01
+        fig.text(0.675, y, textwrap.fill("En el I3, «almacenamiento consumo» suma más energía que la que cargan las baterías en tiempo real: "
+                                          "por eso no se resta compra de venta ni se da un resultado neto.", 48), fontsize=7.5, color=C["gris"], va="top")
+    else:
+        y -= 0.015
+        fig.text(0.675, y, textwrap.fill("La liquidación por mercado (I3) se añade cuando REE la publica, hacia el viernes.", 40), fontsize=8.5, color=C["gris"], va="top")
+    d.guardar(fig)
+    return True
+
+
+def sec_historico(d, res):
+    h = res.get("historico")
+    if h is None or len(h) < 6:
+        return False
+    h = h.sort_values("lunes").tail(60).reset_index(drop=True)
+    fig = d.diapositiva(f"La semana en perspectiva: las últimas {len(h)} semanas",
+                        "Cada punto es una semana, calculada siempre con el mismo método. El techo de arbitraje sigue al spread diario más que al precio medio; "
+                        "la captura solar cae cuando la FV crece y los mediodías se abaratan.",
+                        "Fuente: ESIOS (REE) y OMIE. Cálculo propio con datos públicos; las semanas anteriores al 1-oct-2025 tienen precio horario repetido en los cuatro cuartos.")
+    x = np.arange(len(h))
+    et = (h["etiqueta"].str[2:4] + "-" + h["etiqueta"].str[-3:]).tolist()
+    paneles = [("Precio medio del diario (€/MWh)", [("precio_medio", C["verde"], "Precio medio")]),
+               ("Techo de arbitraje (€/MW·día)", [("bess_4h", C["coral"], "4 h"), ("bess_2h", C["mostaza"], "2 h"), ("bess_1h", C["ciruela"], "1 h")]),
+               ("Captura (% del precio medio)", [("ratio_fv", C["mostaza"], "Solar FV"), ("ratio_eol", C["azul"], "Eólica")]),
+               ("Horas a precio ≤ 0", [("horas_neg", C["coral"], "Horas ≤ 0")])]
+    for i, (tit, cols) in enumerate(paneles):
+        r, c = divmod(i, 2)
+        ax = d.eje(fig, caja=[0.07 + c * 0.47, 0.47 - r * 0.33, 0.40, 0.24])
+        for col, color, lab in cols:
+            if col in h and h[col].notna().any():
+                ax.plot(x, h[col].values, color=color, lw=1.8, label=lab)
+                ax.plot(x[-1], h[col].values[-1], "o", color=color, ms=6)
+        if "ratio" in cols[0][0]:
+            ax.axhline(100, color=C["gris"], ls="--", lw=0.8)
+        ax.set_title(tit, fontsize=10, color=C["verde"], loc="left")
+        paso = max(1, len(x) // 10)
+        ax.set_xticks(x[::paso])
+        ax.set_xticklabels(et[::paso], fontsize=7.5)
+        if len(cols) > 1:
+            ax.legend(frameon=False, fontsize=7.5, loc="upper left", ncol=3)
+    d.guardar(fig)
+    return True
