@@ -25,6 +25,35 @@ def _sin_acentos(s):
     return "".join(c for c in unicodedata.normalize("NFD", s.lower()) if unicodedata.category(c) != "Mn")
 
 
+def _con_respaldo(cli, v, s, ini, fin):
+    """Si la serie principal no cubre la semana y hay `respaldo`, completa los huecos con él.
+    `max_valido` descarta DÍAS enteros del respaldo con valores imposibles (p. ej. desde el
+    25-oct-2026 el 10388 deja de publicarse en €/MW y da cifras de decenas de miles)."""
+    resp = v.get("respaldo")
+    if not resp:
+        return s, None
+    rej = A.rejilla(ini, fin)
+    cob = A.alinear(s, rej).notna().mean() if len(s) else 0.0
+    if cob >= 0.95:
+        return s, None
+    try:
+        _, r = cli.serie(resp, ini, fin, v.get("geo"))
+    except Exception:
+        return s, f"serie {v['id']} incompleta ({cob:.0%}) y sin respaldo disponible."
+    descartados = []
+    if len(r) and v.get("max_valido"):
+        dia = pd.Series(r.index.tz_convert(TZ).date, index=r.index)
+        malos = r.abs().groupby(dia).max()
+        malos = set(malos[malos > v["max_valido"]].index)
+        descartados = sorted(malos)
+        r = r[~dia.isin(malos)]
+    s = r if not len(s) else s.combine_first(r)
+    txt = f"la serie {v['id']} solo cubre el {cob:.0%} de la semana; huecos completados con la {resp}."
+    if descartados:
+        txt += f" Días sin dato válido (valores fuera de rango en la {resp}): {', '.join(d.strftime('%d-%m') for d in descartados)}."
+    return s, txt
+
+
 def descargar(cfg, lunes):
     from .esios import Esios
 
@@ -44,11 +73,14 @@ def descargar(cfg, lunes):
                 raise
             meta[k] = {"nombre": v["nombre"], "id": v["id"], "api": "—", "aviso": f"no se pudo descargar ({e})"}
             continue
-        datos[k] = s
         m = {"nombre": v["nombre"], "id": v["id"], "api": nombre_api}
+        s, aviso_resp = _con_respaldo(cli, v, s, desde, fin)
+        if aviso_resp:
+            m["aviso"] = aviso_resp
+        datos[k] = s
         pal = v.get("palabras", [])
         if pal and not all(_sin_acentos(p) in _sin_acentos(nombre_api) for p in pal):
-            m["aviso"] = f"el indicador {v['id']} se llama «{nombre_api}»; comprueba que es la serie que quieres."
+            m["aviso"] = (m.get("aviso", "") + " " if m.get("aviso") else "") + f"el indicador {v['id']} se llama «{nombre_api}»; comprueba que es la serie que quieres."
             if v.get("provisional"):
                 m["aviso"] += " Serie descartada (ID provisional)."
                 meta[k] = m
