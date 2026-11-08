@@ -12,8 +12,11 @@ on:
         description: "Hasta AAAA-MM-DD (excluido)"
         default: "2026-11-02"
       i3:
-        description: "Días de I3 a guardar (coma)"
-        default: "2026-10-22,2026-10-28"
+        description: "Días de I3 a guardar (coma; vacío = ninguno)"
+        default: ""
+      ids:
+        description: "IDs de ESIOS (coma; vacío = lista por defecto)"
+        default: ""
 
 permissions:
   contents: write
@@ -31,7 +34,7 @@ jobs:
       - run: pip install -r requirements.txt
       - env:
           ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
-        run: python -m src.auditoria --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --i3 "${{ inputs.i3 }}"
+        run: python -m src.auditoria --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}" --i3 "${{ inputs.i3 }}" --ids "${{ inputs.ids }}"
       - run: |
           git config user.name "informe-bot"
           git config user.email "informe-bot@users.noreply.github.com"
