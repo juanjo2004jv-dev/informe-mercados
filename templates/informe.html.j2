@@ -180,7 +180,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 {% if res.mix %}
 <section id="mix">
   <h2>Mix de generación: las renovables cubrieron el {{ res.mix.renovable_pct|n(1) }} %</h2>
-  <p>Entre el {{ res.mix.renovable_min|n(0) }} % y el {{ res.mix.renovable_max|n(0) }} % según el momento.{% if res.mix.horas_ren_demanda == res.mix.horas_ren_demanda %} Durante {{ res.mix.horas_ren_demanda|n(1) }} h la generación renovable superó a toda la demanda peninsular: horas en las que sobra energía y una batería carga barato.{% endif %}{% if res.mix.saldo_intercambios_gwh is defined %} Saldo con el exterior: {{ 'exportación' if res.mix.saldo_intercambios_gwh < 0 else 'importación' }} neta de {{ res.mix.saldo_intercambios_gwh|abs|n(0) }} GWh.{% endif %}</p>
+  <p>Entre el {{ res.mix.renovable_min|n(0) }} % y el {{ res.mix.renovable_max|n(0) }} % según el momento.{% if res.mix.horas_ren_demanda == res.mix.horas_ren_demanda %} Durante {{ res.mix.horas_ren_demanda|n(1) }} h la generación renovable superó a toda la demanda peninsular: horas en las que sobra energía y una batería carga barato.{% endif %}{% if res.mix.saldo_intercambios_gwh is defined %} Saldo con el exterior: {{ 'exportación' if res.mix.saldo_intercambios_gwh < 0 else 'importación' }} neta de {{ res.mix.saldo_intercambios_gwh|abs|n(0) }} GWh.{% endif %}{% if res.mix.hueco_txt %} ESIOS no publicó la generación en tiempo real {{ res.mix.hueco_txt }} ({{ res.mix.hueco_h|n(1) }} h): las energías de la semana no incluyen ese tramo.{% endif %}</p>
   <div class="graf"><div id="g_mix"></div></div>
   <div class="tabla-scroll"><table>
     <thead><tr><th>Tecnología</th><th>GWh</th><th>% de la generación</th></tr></thead>
