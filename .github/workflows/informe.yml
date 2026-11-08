@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   generar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # imagen fijada (la probada el 8-nov-2026); ubuntu-latest migra a Ubuntu 26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
