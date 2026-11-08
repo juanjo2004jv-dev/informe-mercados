@@ -47,6 +47,9 @@ def _con_respaldo(cli, v, s, ini, fin):
         malos = set(malos[malos > v["max_valido"]].index)
         descartados = sorted(malos)
         r = r[~dia.isin(malos)]
+    if not len(r):
+        return s, (f"ESIOS no publica la serie {v['id']} en esta semana (cobertura {cob:.0%}) y el respaldo {resp} "
+                   f"no da valores interpretables como €/MW: sin dato, no se estima.")
     s = r if not len(s) else s.combine_first(r)
     txt = f"la serie {v['id']} solo cubre el {cob:.0%} de la semana; huecos completados con la {resp}."
     if descartados:
