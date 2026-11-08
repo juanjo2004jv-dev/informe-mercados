@@ -117,6 +117,9 @@ def portada(d, res, cfg):
              color="#C9DCCB", va="top", linespacing=1.5)
     fig.text(0.06, 0.14, "Mercados diario e intradiarios, servicios de balance,\nbaterías y demanda del sistema peninsular",
              fontsize=11, color="#A8C2AB", va="top", linespacing=1.5)
+    if res.get("provisional"):
+        fig.text(0.06, 0.25, "EDICIÓN PROVISIONAL · sin liquidación I3", fontsize=11, fontweight="bold", color="#FFD27A")
+        fig.text(0.06, 0.215, "Las secciones del I3 se añaden solas cuando REE lo publica (hacia el viernes).", fontsize=9, color="#C9DCCB")
     pie = "Elaboración propia con datos públicos de ESIOS (REE) y OMIE"
     if cfg.get("autor"):
         pie += f" · {cfg['autor']}"
@@ -138,33 +141,42 @@ def resumen(d, res, t):
     fig = d.diapositiva("Resumen de la semana", fuente="Fuente: ESIOS (REE) y OMIE. Techo de arbitraje: cálculo propio, solo mercado diario.")
     kp = [
         ("Precio medio", f"{n(res['precio_medio'])}", "€/MWh", f"{n(res['var_prev'], 1, True)} % vs semana anterior"),
-        ("Horas a precio ≤ 0", f"{n(res['horas_neg'], 1)}", "h", f"mínimo {n(res['precio_min'], 0)} €/MWh"),
+        ("Horas a precio ≤ 0", f"{n(res['horas_neg'], 1)}", "h", f"mínimo {n(res['precio_min'], 1)} €/MWh"),
         ("Spread diario medio", f"{n(res['spread_medio'], 0)}", "€/MWh", "máx − mín de cada día"),
         ("Techo arbitraje BESS", f"{n(res['bess_dia'], 0)}", "€/MW·día", f"batería {int(res['_bat_horas'])} h, solo diario"),
     ]
     if "gen_solar_fv" in res["captura"]:
         c = res["captura"]["gen_solar_fv"]
         kp.append(("Solar capturó", f"{n(c['ratio'], 0)}", "% del medio", f"{n(c['precio'])} €/MWh"))
+    if res.get("mix"):
+        kp.append(("Renovables", f"{n(res['mix']['renovable_pct'], 0)}", "% de la generación", f"máx. {n(res['mix']['renovable_max'], 0)} % en un cuarto"))
     ancho = 0.91 / len(kp)
     for i, (a, b, u, s) in enumerate(kp):
         x = 0.045 + i * ancho
         fig.add_artist(Rectangle((x + 0.005, 0.60), ancho - 0.012, 0.2, color=C["panel"], transform=fig.transFigure))
         fig.add_artist(Rectangle((x + 0.005, 0.60), 0.004, 0.2, color=PALETA[i % len(PALETA)], transform=fig.transFigure))
         fig.text(x + 0.02, 0.775, a, fontsize=9, color=C["gris"])
-        fig.text(x + 0.02, 0.70, b, fontsize=30, fontweight="bold", color=C["verde"])
+        fig.text(x + 0.02, 0.70, b, fontsize=30 if len(kp) <= 5 else 25, fontweight="bold", color=C["verde"])
         fig.text(x + 0.02, 0.655, u, fontsize=9.5, color=C["gris"])
         fig.text(x + 0.02, 0.615, s, fontsize=8.5, color=C["gris"])
     pts = [t["titular"], t["h_calor"] + ". " + t["p_calor"].split(". ")[0] + ".", t.get("p_bess", "")]
+    if t.get("p_bat"):
+        pts.append(t["p_bat"])
     if t.get("h_solar"):
         pts.append(t["h_solar"] + ".")
     if t.get("h_dem"):
         pts.append(t["h_dem"] + ".")
+    if res.get("provisional"):
+        fig.text(0.06, 0.555, "Edición provisional: las secciones basadas en la liquidación I3 de REE se añadirán automáticamente cuando se publique (hacia el viernes).",
+                 fontsize=9.5, color=C["coral"], fontweight="bold")
     y = 0.52
-    for p in [p for p in pts if p]:
-        txt = textwrap.fill(p, 120)
+    pts = [p for p in pts if p]
+    fs, ancho, paso = (11.5, 120, 0.036) if len(pts) <= 5 else (10.5, 135, 0.032)
+    for p in pts:
+        txt = textwrap.fill(p, ancho)
         fig.add_artist(Circle((0.055, y - 0.004), 0.0045, color=C["coral"], transform=fig.transFigure))
-        fig.text(0.07, y + 0.012, txt, fontsize=11.5, va="top", linespacing=1.4)
-        y -= 0.036 * (txt.count("\n") + 1) + 0.03
+        fig.text(0.07, y + 0.012, txt, fontsize=fs, va="top", linespacing=1.35)
+        y -= paso * (txt.count("\n") + 1) + 0.024
     d.guardar(fig)
 
 
@@ -404,6 +416,7 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
         "El coste base de la operación reforzada es un contrafactual, no una liquidación: supone que sin el apagón el control de tensión habría seguido costando lo de los cuatro primeros meses de 2025.",
         "El €/MVArh depende del ángulo entre activa y reactiva, que no es observable. Aquí se ha usado α = 45°.",
         "Techo de arbitraje, ratio de captura y semáforos son cálculos propios de este informe con datos públicos: sirven para comparar semanas, no son ingresos ni recomendaciones.",
+        "Calendario: el lunes se publica la edición provisional (mercados, balance, mix y baterías) y, en cuanto REE publica el I3 de los siete días (D+4, hacia el viernes), el informe se regenera solo con todas las secciones.",
     ]
     y = 0.84
     for p in notas:
@@ -458,6 +471,7 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
                 "La energía de cada mercado no se puede sumar entre sí: lo vendido en el diario y recomprado en un intradiario aparecería dos veces.", "MW")
     lineas_tipo(d, res, cfg, "banda_mw", "Banda de aFRR: asignada y requerida", "Potencia reservada en cada sentido (asignada, ID 632/633) y la que pide REE (requerida, ID 630/631).", "MW")
     demanda(d, res, t)
+    X.sec_mix(d, res)
     tabla_mercados(d, res, cfg)
     ok3 = i3 is not None and len(i3) > 0
     if ok3:
@@ -493,13 +507,15 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     X.sec_rango_diario(d, res)
     perfil(d, res)
     bateria(d, res, cfg, t)
+    X.sec_baterias(d, res)
     X.sec_duraciones(d, res, cfg)
     X.sec_banda(d, res, cfg)
     X.sec_primas(d, res, cfg)
     captura(d, res, cfg, t)
     X.sec_canibalizacion(d, res)
     X.sec_residual(d, res)
-    tendencia(d, res, t)
+    if not X.sec_historico(d, res):
+        tendencia(d, res, t)
     X.sec_glosario(d)
     metodologia(d, res, cfg, meta, i3_estado)
     d.cerrar()
