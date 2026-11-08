@@ -9,6 +9,10 @@ on:
       desde:
         description: "Primer lunes AAAA-MM-DD"
         default: "2025-01-06"
+      recalcular:
+        description: "Rehacer también las semanas que ya están (p. ej. tras añadir una columna)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -31,7 +35,8 @@ jobs:
       - env:
           ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
           DESDE: ${{ inputs.desde }}
-        run: python -m src.historico --desde "$DESDE"
+          RECALC: ${{ inputs.recalcular && '--recalcular' || '' }}
+        run: python -m src.historico --desde "$DESDE" $RECALC
       - run: |
           git config user.name "informe-bot"
           git config user.email "informe-bot@users.noreply.github.com"
