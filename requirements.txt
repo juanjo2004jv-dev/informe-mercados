@@ -1,8 +1,11 @@
-pandas>=2.2
-numpy>=1.26
-requests>=2.31
-jinja2>=3.1
-pyyaml>=6.0
-matplotlib>=3.8
-python-calamine>=0.2
-openpyxl>=3.1
+# Versiones fijadas (probadas el 8-nov-2026): una versión nueva publicada un domingo por la noche
+# no puede romper el informe del lunes. Para actualizar: cambiar aquí y lanzar el informe con "forzar".
+pandas==3.0.5
+numpy==2.5.3
+requests==2.34.2
+jinja2==3.1.6
+pyyaml==6.0.3
+matplotlib==3.11.2
+pillow==12.3.0
+python-calamine==0.8.2
+openpyxl==3.1.5
