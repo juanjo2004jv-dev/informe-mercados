@@ -1,7 +1,7 @@
 {
  "600": {
   "nombre": "Precio mercado SPOT Diario",
-  "n": 12702,
+  "n": 20190,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -43,7 +43,7 @@
  },
  "612": {
   "nombre": "Precio mercado SPOT Intradiario Sesión 1",
-  "n": 3850,
+  "n": 6154,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -69,7 +69,7 @@
  },
  "613": {
   "nombre": "Precio mercado SPOT Intradiario Sesión 2",
-  "n": 4234,
+  "n": 6728,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -95,7 +95,7 @@
  },
  "614": {
   "nombre": "Precio mercado SPOT Intradiario Sesión 3",
-  "n": 2112,
+  "n": 3360,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -121,7 +121,7 @@
  },
  "1727": {
   "nombre": "Precio de referencia en Mercado Intradiario Continuo",
-  "n": 507,
+  "n": 794,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -143,7 +143,7 @@
  },
  "602": {
   "nombre": "Energía asignada en Mercado SPOT Diario España",
-  "n": 2095,
+  "n": 3330,
   "magnitud": [
    {
     "name": "Energía",
@@ -165,7 +165,7 @@
  },
  "605": {
   "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 1",
-  "n": 1925,
+  "n": 3077,
   "magnitud": [
    {
     "name": "Energía",
@@ -187,7 +187,7 @@
  },
  "606": {
   "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 2",
-  "n": 2117,
+  "n": 3364,
   "magnitud": [
    {
     "name": "Energía",
@@ -209,7 +209,7 @@
  },
  "607": {
   "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 3",
-  "n": 1056,
+  "n": 1680,
   "magnitud": [
    {
     "name": "Energía",
@@ -231,7 +231,7 @@
  },
  "1442": {
   "nombre": "Energía asignada en Mercado Intradiario Continuo",
-  "n": 506,
+  "n": 817,
   "magnitud": [
    {
     "name": "Energía",
@@ -253,7 +253,7 @@
  },
  "682": {
   "nombre": "Precio de energía de regulación secundaria a subir",
-  "n": 2115,
+  "n": 3342,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -275,7 +275,7 @@
  },
  "683": {
   "nombre": "Precio de energía de regulación secundaria a bajar",
-  "n": 2115,
+  "n": 3342,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -297,7 +297,7 @@
  },
  "680": {
   "nombre": "Energía activada  de regulación secundaria a subir en el sepe",
-  "n": 2115,
+  "n": 3342,
   "magnitud": [
    {
     "name": "Energía",
@@ -319,7 +319,7 @@
  },
  "681": {
   "nombre": "Energía activada  de regulación secundaria a bajar en el sepe",
-  "n": 2115,
+  "n": 3342,
   "magnitud": [
    {
     "name": "Energía",
@@ -341,7 +341,7 @@
  },
  "2197": {
   "nombre": "Precio energías de balance mFRR de activación programada",
-  "n": 2091,
+  "n": 3317,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -380,7 +380,7 @@
  },
  "10388": {
   "nombre": "Precio medio ponderado reserva de regulación secundaria a subir",
-  "n": 2117,
+  "n": 3365,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -402,7 +402,7 @@
  },
  "10463": {
   "nombre": "Precio medio ponderado reserva de regulación secundaria a bajar",
-  "n": 2117,
+  "n": 3365,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -424,7 +424,7 @@
  },
  "630": {
   "nombre": "Requerimientos reserva de regulación secundaria a subir",
-  "n": 2117,
+  "n": 3365,
   "magnitud": [
    {
     "name": "Potencia",
@@ -446,7 +446,7 @@
  },
  "631": {
   "nombre": "Requerimientos reserva de regulación secundaria a bajar",
-  "n": 2117,
+  "n": 3365,
   "magnitud": [
    {
     "name": "Potencia",
@@ -468,7 +468,7 @@
  },
  "632": {
   "nombre": "Asignación reserva de regulación secundaria a subir",
-  "n": 1248,
+  "n": 2305,
   "magnitud": [
    {
     "name": "Potencia",
@@ -490,7 +490,7 @@
  },
  "633": {
   "nombre": "Asignación reserva de regulación secundaria a bajar",
-  "n": 1248,
+  "n": 2305,
   "magnitud": [
    {
     "name": "Potencia",
@@ -512,7 +512,7 @@
  },
  "634": {
   "nombre": "Precio reserva de regulación secundaria a bajar",
-  "n": 1248,
+  "n": 2305,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -534,7 +534,7 @@
  },
  "2130": {
   "nombre": "Precio Reserva de regulación secundaria a subir",
-  "n": 1248,
+  "n": 2305,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -556,7 +556,7 @@
  },
  "674": {
   "nombre": "Asignación programada a bajar de energías mFRR SEE (AP)",
-  "n": 2023,
+  "n": 3195,
   "magnitud": [
    {
     "name": "Energía",
@@ -578,7 +578,7 @@
  },
  "675": {
   "nombre": "Asignación programada a subir de energías mFRR SEE (AP)",
-  "n": 1977,
+  "n": 3146,
   "magnitud": [
    {
     "name": "Energía",
@@ -766,7 +766,7 @@
  },
  "1293": {
   "nombre": "Demanda real Peninsular",
-  "n": 6349,
+  "n": 9974,
   "magnitud": [
    {
     "name": "Potencia",
@@ -788,7 +788,7 @@
  },
  "544": {
   "nombre": "Demanda prevista Peninsular",
-  "n": 6349,
+  "n": 10093,
   "magnitud": [
    {
     "name": "Potencia",
@@ -810,7 +810,7 @@
  },
  "545": {
   "nombre": "Demanda programada Peninsular",
-  "n": 6349,
+  "n": 10093,
   "magnitud": [
    {
     "name": "Potencia",
@@ -832,7 +832,7 @@
  },
  "551": {
   "nombre": "Generación T.Real eólica",
-  "n": 6349,
+  "n": 9974,
   "magnitud": [
    {
     "name": "Potencia",
@@ -854,7 +854,7 @@
  },
  "1295": {
   "nombre": "Generación T.Real Solar fotovoltaica",
-  "n": 6349,
+  "n": 9974,
   "magnitud": [
    {
     "name": "Potencia",
@@ -871,6 +871,734 @@
    [
     8741,
     "Península"
+   ]
+  ]
+ },
+ "10389": {
+  "nombre": "Precio medio ponderado de energía de regulación secundaria a subir",
+  "n": 3344,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10390": {
+  "nombre": "Precio medio ponderado de energía de regulación secundaria a bajar",
+  "n": 3344,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "546": {
+  "nombre": "Generación T.Real hidráulica",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "547": {
+  "nombre": "Generación T.Real carbón",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "548": {
+  "nombre": "Generación T.Real fuel-gas",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "549": {
+  "nombre": "Generación T.Real nuclear",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "550": {
+  "nombre": "Generación T.Real C.Combinado",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "552": {
+  "nombre": "Generación T.Real solar",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "553": {
+  "nombre": "Generación T.Real intercambios",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "554": {
+  "nombre": "Generación T.Real enlace balear",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "555": {
+  "nombre": "Resto generación T.Real",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Diez minutos",
+    "id": 154
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1294": {
+  "nombre": "Generación T.Real Solar térmica",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1296": {
+  "nombre": "Generación T.Real Térmica renovable",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1297": {
+  "nombre": "Generación T.Real Cogeneración y resto",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2078": {
+  "nombre": "Generación T.Real consumo bombeo",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2079": {
+  "nombre": "Generación T.Real turbinación bombeo",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2080": {
+  "nombre": "Generación T.Real generación hidráulica",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2344": {
+  "nombre": "Generación T.Real Turbina de vapor",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2166": {
+  "nombre": "Almacenamiento T.Real Carga Baterías",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2167": {
+  "nombre": "Almacenamiento T.Real Entrega Baterías",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10351": {
+  "nombre": "Generación T.Real renovable",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10352": {
+  "nombre": "Generación T.Real no renovable",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10355": {
+  "nombre": "CO2 Asociado Generación T.Real",
+  "n": 9974,
+  "magnitud": [
+   {
+    "name": "tCO2/MW",
+    "id": 217
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10464": {
+  "nombre": "Almacenamiento total programa p48",
+  "n": 3364,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2337": {
+  "nombre": "Potencia habilitada en aFRR Almacenamiento",
+  "n": 31,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Día",
+    "id": 3
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1485": {
+  "nombre": "Potencia instalada de generación eólica",
+  "n": 17,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Mes",
+    "id": 2
+   }
+  ],
+  "geos": [
+   [
+    10,
+    "País Vasco"
+   ],
+   [
+    11,
+    "Principado de Asturias"
+   ],
+   [
+    13,
+    "Comunidad de Madrid"
+   ],
+   [
+    14,
+    "Comunidad Foral de Navarra"
+   ],
+   [
+    15,
+    "Comunidad Valenciana"
+   ],
+   [
+    16,
+    "Extremadura"
+   ],
+   [
+    17,
+    "Galicia"
+   ],
+   [
+    18,
+    "Islas Baleares"
+   ],
+   [
+    19,
+    "Islas Canarias"
+   ],
+   [
+    20,
+    "La Rioja"
+   ],
+   [
+    21,
+    "Región de Murcia"
+   ],
+   [
+    4,
+    "Andalucía"
+   ]
+  ]
+ },
+ "1486": {
+  "nombre": "Potencia instalada de generación solar fotovoltaica",
+  "n": 19,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Mes",
+    "id": 2
+   }
+  ],
+  "geos": [
+   [
+    10,
+    "País Vasco"
+   ],
+   [
+    11,
+    "Principado de Asturias"
+   ],
+   [
+    12,
+    "Ceuta"
+   ],
+   [
+    13,
+    "Comunidad de Madrid"
+   ],
+   [
+    14,
+    "Comunidad Foral de Navarra"
+   ],
+   [
+    15,
+    "Comunidad Valenciana"
+   ],
+   [
+    16,
+    "Extremadura"
+   ],
+   [
+    17,
+    "Galicia"
+   ],
+   [
+    18,
+    "Islas Baleares"
+   ],
+   [
+    19,
+    "Islas Canarias"
+   ],
+   [
+    20,
+    "La Rioja"
+   ],
+   [
+    21,
+    "Región de Murcia"
+   ]
+  ]
+ },
+ "2275": {
+  "nombre": "Potencia instalada de baterías híbridada",
+  "n": 7,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Mes",
+    "id": 2
+   }
+  ],
+  "geos": [
+   [
+    10,
+    "País Vasco"
+   ],
+   [
+    16,
+    "Extremadura"
+   ],
+   [
+    18,
+    "Islas Baleares"
+   ],
+   [
+    19,
+    "Islas Canarias"
+   ],
+   [
+    4,
+    "Andalucía"
+   ],
+   [
+    7,
+    "Castilla-La Mancha"
+   ],
+   [
+    8,
+    "Castilla y León"
    ]
   ]
  }
