@@ -19,6 +19,12 @@ def alinear(s, idx, limite=3):
     if s is None or len(s) == 0:
         return pd.Series(np.nan, index=idx)
     s = s[~s.index.duplicated()].sort_index()
+    paso = s.index.to_series().diff().median() if len(s) > 1 else pd.Timedelta(minutes=15)
+    if paso < pd.Timedelta(minutes=59):
+        # serie cuartohoraria: NO se rellena. Antes el ffill copiaba el último precio del IDA3
+        # (que acaba a las 24:00) en los primeros cuartos del día siguiente, y el día sin IDA1
+        # heredaba tres cuartos del anterior: medias y coberturas distintas de las de ESIOS.
+        return s.reindex(idx)
     return s.reindex(idx.union(s.index)).ffill(limit=limite).reindex(idx)
 
 
@@ -285,7 +291,10 @@ def analizar(datos, cfg, lunes):
                         "media": float(s.mean()),
                         "min": float(s.min()),
                         "max": float(s.max()),
-                        "dif": float(s.mean() - res["precio_medio"]),
+                        # diferencia en los MISMOS cuartos de hora: el IDA3 solo cubre 12:00-24:00
+                        # y compararlo con la media del día entero lo sesgaba al alza
+                        "dif": float((s - spot).mean()),
+                        "cubre": float(s.notna().mean()),
                         "serie": s,
                     }
                 )
