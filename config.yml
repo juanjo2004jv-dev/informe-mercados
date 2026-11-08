@@ -70,8 +70,11 @@ opcionales:
   # su tabla. Desde el 25-oct-2026 ESIOS dejó de publicarlas; el respaldo 10388/10463 vale lo mismo
   # hasta el 24-oct pero desde el 25-oct publica cifras que no son €/MW (decenas de miles): esos
   # días se descartan con max_valido. La asignada no tiene respaldo: el requerimiento (630/631) va aparte.
-  afrr_banda_p_subir: {id: 2130, respaldo: 10388, max_valido: 1000, provisional: true, palabras: [reserva], nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
-  afrr_banda_p_bajar: {id: 634, respaldo: 10463, max_valido: 1000, provisional: true, palabras: [reserva], nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
+  # Del 25-oct al 4-nov-2026 ESIOS no publicó 2130/634/632/633 y el 10388 llevaba exactamente el coste de
+  # la reserva (ID 712/899, €). Último recurso: precio ≈ coste (712/2127) ÷ banda requerida (630/631), marcado
+  # como estimado (error medio < 1 % frente a 2130/634 del 5 al 8-nov). Desde el 5-nov vuelven las oficiales.
+  afrr_banda_p_subir: {id: 2130, respaldo: 10388, max_valido: 1000, estimar: {coste: 712, banda: 630}, provisional: true, palabras: [reserva], nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_p_bajar: {id: 634, respaldo: 10463, max_valido: 1000, estimar: {coste: 2127, banda: 631}, provisional: true, palabras: [reserva], nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
   afrr_banda_subir:   {id: 632, provisional: true, palabras: [reserva], nombre: Banda aFRR asignada a subir, unidad: MW, tipo: banda_mw}
   afrr_banda_bajar:   {id: 633, provisional: true, palabras: [reserva], nombre: Banda aFRR asignada a bajar, unidad: MW, tipo: banda_mw}
   afrr_req_subir:     {id: 630, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a subir, unidad: MW, tipo: banda_mw}
@@ -81,10 +84,10 @@ opcionales:
   casada_ida2:     {id: 606, provisional: true, palabras: [intradiario], nombre: Energía casada IDA2, unidad: MW, tipo: energia}
   casada_ida3:     {id: 607, provisional: true, palabras: [intradiario], nombre: Energía casada IDA3, unidad: MW, tipo: energia}
   casada_continuo: {id: 1442, provisional: true, palabras: [continuo], nombre: Energía casada continuo, unidad: MW, tipo: energia}
-  afrr_energia_act_subir: {id: 680, provisional: true, palabras: [secundaria], nombre: aFRR energía activada a subir, unidad: MW, tipo: energia}
-  afrr_energia_act_bajar: {id: 681, provisional: true, palabras: [secundaria], nombre: aFRR energía activada a bajar, unidad: MW, tipo: energia}
-  mfrr_asig_subir: {id: 675, provisional: true, palabras: [mfrr], nombre: mFRR asignación a subir (AP), unidad: MW, tipo: energia}
-  mfrr_asig_bajar: {id: 674, provisional: true, palabras: [mfrr], nombre: mFRR asignación a bajar (AP), unidad: MW, tipo: energia}
+  afrr_energia_act_subir: {id: 680, provisional: true, palabras: [secundaria], nombre: aFRR energía activada a subir, unidad: MW, tipo: energia_balance}
+  afrr_energia_act_bajar: {id: 681, provisional: true, palabras: [secundaria], nombre: aFRR energía activada a bajar, unidad: MW, tipo: energia_balance}
+  mfrr_asig_subir: {id: 675, provisional: true, palabras: [mfrr], nombre: mFRR asignación a subir (AP), unidad: MW, tipo: energia_balance}
+  mfrr_asig_bajar: {id: 674, provisional: true, palabras: [mfrr], nombre: mFRR asignación a bajar (AP), unidad: MW, tipo: energia_balance}
 
 # ---------- Mix de generación peninsular en tiempo real (MW, 5 min) ----------
 # Comprobado (semana 44): generación + intercambios + enlace balear + baterías cierra con la demanda
