@@ -1,0 +1,44 @@
+name: Ensayo (sin publicar)
+
+# Genera el informe con datos REALES de ESIOS pero SIN publicarlo: no toca la web, el archivo, el
+# historial ni el histórico. Sirve para comprobar antes del lunes que todo funciona. Admite la
+# semana en curso ("actual"), aunque no haya terminado. El resultado queda en data/ensayo/.
+on:
+  workflow_dispatch:
+    inputs:
+      semana:
+        description: "'actual', 'anterior' o una fecha AAAA-MM-DD"
+        default: "actual"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: informe
+  cancel-in-progress: false
+
+jobs:
+  ensayo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Ensayo
+        env:
+          ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
+          SEMANA: ${{ inputs.semana }}
+        run: |
+          rm -rf data/ensayo
+          python -m src.run --semana "$SEMANA" --ensayo
+      - name: Guardar el resultado en data/ensayo
+        if: ${{ always() }}
+        run: |
+          git config user.name "informe-bot"
+          git config user.email "informe-bot@users.noreply.github.com"
+          git add -A data/ensayo
+          git diff --staged --quiet || (git commit -m "Ensayo del informe" && (git pull --rebase --autostash; git push))
