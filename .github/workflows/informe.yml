@@ -2,11 +2,12 @@ name: Informe semanal
 
 on:
   schedule:
-    # De lunes a sábado a las 06:00 UTC (07:00-08:00 en España).
+    # De lunes a sábado a las 06:17 UTC (07:17 en invierno, 08:17 en verano). Minuto 17 y no en punto: a las
+    # horas en punto la cola de tareas programadas de GitHub se satura y puede retrasarlas o descartarlas.
     # Lunes: edición provisional con mercados, balance, mix y baterías (el I3 de REE llega a D+4: el del
     # domingo, el jueves). Martes a sábado: si la semana salió provisional y el I3 ya está completo, se
     # regenera entera; si ya está completa, no hace nada. Si el lunes falla, el martes la genera.
-    - cron: "0 6 * * 1-6"
+    - cron: "17 6 * * 1-6"
   workflow_dispatch:
     inputs:
       semana:
