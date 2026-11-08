@@ -248,6 +248,20 @@ def descargar_dia(cli, dia):
     return r.content
 
 
+_MESES = {"ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6, "jul": 7, "ago": 8, "sep": 9, "oct": 10, "nov": 11, "dic": 12}
+
+
+def fecha_informe(hojas):
+    """Fecha del informe que declara el propio I3 (hoja I3DIA00, «Fecha del Informe»), o None."""
+    filas = hojas.get("I3DIA00") or []
+    for i, f in enumerate(filas[:20]):
+        if any(str(c).strip().lower() == "fecha del informe" for c in f) and i + 1 < len(filas):
+            m = re.match(r"(\d{1,2})-([a-zé]{3})-(\d{4})", str(filas[i + 1][0]).strip().lower())
+            if m and m.group(2) in _MESES:
+                return date(int(m.group(3)), _MESES[m.group(2)], int(m.group(1)))
+    return None
+
+
 def cargar_almacen():
     if ALMACEN.exists():
         return pd.read_csv(ALMACEN, parse_dates=["fecha"], keep_default_na=False, na_values=[""]).assign(
@@ -301,6 +315,9 @@ def actualizar(desde, hasta, cli=None, maxdias=None):
         if dia not in tengo:
             try:
                 hojas = hojas_de_zip(descargar_dia(cli, dia))
+                fi = fecha_informe(hojas)
+                if fi is not None and fi != dia:              # ESIOS devolvió otro día: no se guarda
+                    raise RuntimeError(f"el I3 descargado es del {fi}, no del {dia}")
                 from .i3_real import procesar as _proc
 
                 pr = precios_dia(cli, dia)
