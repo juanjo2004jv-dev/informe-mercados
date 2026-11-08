@@ -300,14 +300,46 @@ def precios_dia(cli, dia):
     return out
 
 
-def actualizar(desde, hasta, cli=None, maxdias=None):
-    """Completa el almacén con los días que falten entre desde y hasta."""
+def huecos_precios(df):
+    """Días con energía de restricciones (PBF o tiempo real) pero sin su importe, o con diario sin
+    valorar: REE publica a veces el I3 con las hojas de precios vacías («No se han obtenido datos»,
+    p. ej. el 1-nov-2026) y las completa después."""
+    if df is None or not len(df):
+        return []
+    x = df.assign(_d=pd.to_datetime(df["fecha"]).dt.date)
+    out = set()
+    for d, g in x.groupby("_d"):
+        for merc in ("Restricciones MD", "Restricciones TR"):
+            e = g[(g["mercado"] == merc) & (g["magnitud"] == "energia")]["valor"].abs().sum()
+            i = g[(g["mercado"] == merc) & (g["magnitud"] == "ingreso")]["valor"].abs().sum()
+            if e > 100 and i == 0:
+                out.add(d)
+        e = g[(g["mercado"] == "Diario") & (g["magnitud"] == "energia")]["valor"].abs().sum()
+        i = g[(g["mercado"] == "Diario") & (g["magnitud"] == "ingreso")]["valor"].abs().sum()
+        if e > 100 and i == 0:
+            out.add(d)
+    return sorted(out)
+
+
+def actualizar(desde, hasta, cli=None, maxdias=None, refrescar_dias=21):
+    """Completa el almacén con los días que falten entre desde y hasta. Además vuelve a descargar
+    los días de las últimas `refrescar_dias` jornadas que quedaron sin precios (huecos_precios):
+    cuando REE complete el I3, el almacén se corrige solo."""
     from .esios import Esios
 
     cli = cli or Esios()
     mapa = cargar_mapa()
     alm = cargar_almacen()
     tengo = set(pd.to_datetime(alm["fecha"]).dt.date) if len(alm) else set()
+    if refrescar_dias and len(alm):
+        corte = hasta - timedelta(days=refrescar_dias)
+        f = pd.to_datetime(alm["fecha"]).dt.date
+        recientes = alm[(f >= corte) & (f <= hasta)]
+        rehacer = set(huecos_precios(recientes))
+        if rehacer:
+            print(f"I3: se vuelven a descargar {len(rehacer)} día(s) sin precios: {', '.join(str(x) for x in sorted(rehacer))}")
+            tengo -= rehacer
+    reemplazar = set()
     nuevos, fallos, sc_total = [], [], {}
     dia = desde
     hechos = 0
@@ -326,22 +358,30 @@ def actualizar(desde, hasta, cli=None, maxdias=None):
                 df, sc = _proc(hojas, pd.Timestamp(dia), pr)
                 if len(df):
                     nuevos.append(df)
+                    reemplazar.add(dia)
                 for k, v in sc.items():
                     sc_total[k] = sc_total.get(k, 0) + v
                 hechos += 1
                 if hechos % 60 == 0 and nuevos:                 # guardado parcial: una caída no pierde todo
-                    alm = pd.concat([alm] + nuevos, ignore_index=True)
+                    alm = _sustituir(alm, nuevos, reemplazar)
                     guardar_almacen(alm)
-                    nuevos = []
+                    nuevos, reemplazar = [], set()
             except Exception as e:                              # día aún no publicado, etc.
                 fallos.append((dia.isoformat(), str(e)[:80]))
             if maxdias and hechos >= maxdias:
                 break
         dia += timedelta(days=1)
     if nuevos:
-        alm = pd.concat([alm] + nuevos, ignore_index=True)
+        alm = _sustituir(alm, nuevos, reemplazar)
         guardar_almacen(alm)
     return alm, fallos, sc_total
+
+
+def _sustituir(alm, nuevos, dias):
+    """Añade los días nuevos quitando antes las filas viejas de esos mismos días (refresco)."""
+    if len(alm) and dias:
+        alm = alm[~pd.to_datetime(alm["fecha"]).dt.date.isin(dias)]
+    return pd.concat([alm] + nuevos, ignore_index=True)
 
 
 # ----------------------------------------------------------------- 3. validación
