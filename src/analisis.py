@@ -299,9 +299,82 @@ def analizar(datos, cfg, lunes):
                     }
                 )
 
+    # mix de generación y baterías del sistema (tiempo real)
+    res["mix"] = mix_semana(datos, cfg, idx)
+    res["baterias"] = baterias_semana(datos, idx, spot, res)
+
     # cobertura de todas las series
     res["cobertura"]["spot"] = float(spot.notna().mean())
     for k in list(datos):
-        if k != "spot":
+        if k != "spot" and not k.startswith(("mix_", "bal_")):
             res["cobertura"][k] = float(alinear(datos[k], idx).notna().mean())
     return res
+
+
+# ---------------------------------------------------------------- mix y baterías
+def mix_semana(datos, cfg, idx):
+    """Mix peninsular en tiempo real (MW cada 5 min, promediado a 15 min).
+
+    La hidráulica de ESIOS (546) va en NETO: incluye la turbinación (2079) y el consumo de
+    bombeo (2078). Para la cuota renovable se separa: hidráulica convencional = 546 - 2079 - 2078,
+    y la turbinación de bombeo cuenta como no renovable (criterio de REE). Comprobado: generación
+    + intercambios + enlace balear + baterías cierra con la demanda real con un -0,7 % (semana 44)."""
+    conf = cfg.get("mix") or {}
+    if not conf:
+        return None
+    s = {k: alinear(datos.get(f"mix_{k}"), idx) for k in conf}
+    if not s or np.mean([v.notna().mean() for v in s.values()]) < 0.5:
+        return None
+    bal = {k: alinear(datos.get(f"bal_{k}"), idx) for k in (cfg.get("balance") or {})}
+    if "hidraulica" in s:
+        bomb = bal.get("turb_bombeo", pd.Series(0.0, index=idx)).fillna(0) + bal.get("cons_bombeo", pd.Series(0.0, index=idx)).fillna(0)
+        s["hidraulica"] = (s["hidraulica"] - bomb).clip(lower=0)
+        if "turb_bombeo" in bal:
+            s["turb_bombeo"] = bal["turb_bombeo"].clip(lower=0)
+    nombres = {k: v["nombre"] for k, v in conf.items()}
+    renov = {k for k, v in conf.items() if v.get("renovable")}
+    if "turb_bombeo" in s:
+        nombres["turb_bombeo"] = "Turbinación bombeo"
+    gen = pd.DataFrame(s).clip(lower=0)
+    total = gen.sum(axis=1, min_count=1)
+    e = gen.sum() / 4 / 1000                                                   # GWh
+    ren = gen[[k for k in gen.columns if k in renov]].sum(axis=1)
+    dem = alinear(datos.get("demanda_real"), idx)
+    out = {
+        "series": gen, "nombres": nombres, "renovables": renov,
+        "gwh": e.sort_values(ascending=False), "cuota": (e / e.sum() * 100).sort_values(ascending=False),
+        "renovable_pct": float(ren.sum() / total.sum() * 100) if total.sum() else np.nan,
+        "renovable_max": float((ren / total).max() * 100) if total.notna().any() else np.nan,
+        "renovable_min": float((ren / total).min() * 100) if total.notna().any() else np.nan,
+        "horas_ren_demanda": float(((ren >= dem) & dem.notna()).sum() / 4) if dem.notna().any() else np.nan,
+    }
+    if "intercambios" in bal and bal["intercambios"].notna().mean() > 0.5:
+        x = bal["intercambios"]
+        out["saldo_intercambios_gwh"] = float(x.sum() / 4 / 1000)          # negativo = exportación neta
+        out["horas_exportando"] = float((x < 0).sum() / 4)
+    return out
+
+
+def baterias_semana(datos, idx, spot, res):
+    """Parque de baterías peninsular en tiempo real (2166 carga, 2167 entrega)."""
+    c, e = alinear(datos.get("bal_bat_carga"), idx), alinear(datos.get("bal_bat_entrega"), idx)
+    if c.notna().mean() < 0.5 or e.notna().mean() < 0.5:
+        return None
+    carga = (-c).clip(lower=0)                                                 # ESIOS publica la carga en negativo
+    entrega = e.clip(lower=0)
+    mc, md = carga.sum() / 4, entrega.sum() / 4                                 # MWh
+    def pond(p, w):
+        m = p.notna() & w.notna() & (w > 0)
+        return float((p[m] * w[m]).sum() / w[m].sum()) if w[m].sum() > 0 else np.nan
+    pc, pdesc = pond(spot, carga), pond(spot, entrega)
+    neto = entrega.fillna(0) - carga.fillna(0)
+    return {
+        "carga": carga, "entrega": entrega, "neto": neto,
+        "mwh_carga": float(mc), "mwh_entrega": float(md),
+        "mw_max_carga": float(carga.max()), "mw_max_entrega": float(entrega.max()),
+        "rendimiento": float(md / mc * 100) if mc > 0 else np.nan,
+        "precio_carga": pc, "precio_descarga": pdesc,
+        "spread": pdesc - pc if not (np.isnan(pc) or np.isnan(pdesc)) else np.nan,
+        "ingreso_neto": float(((entrega.fillna(0) - carga.fillna(0)) * spot.fillna(0)).sum() / 4),
+        "perfil_neto": perfil_intradia(neto),
+    }
