@@ -63,11 +63,19 @@ opcionales:
   afrr_subir:      {id: 682, provisional: true, palabras: [secundaria], nombre: aFRR energía a subir, unidad: €/MWh, tipo: precio}
   afrr_bajar:      {id: 683, provisional: true, palabras: [secundaria], nombre: aFRR energía a bajar, unidad: €/MWh, tipo: precio}
   mfrr_subir:      {id: 2197, provisional: true, palabras: [mfrr], nombre: mFRR precio (activación programada), unidad: €/MWh, tipo: precio}
+  # Las series de tipo energia vienen de ESIOS en MWh por periodo; src/esios.py las pasa a MW medios
+  # (x4 en las cuartohorarias), igual que UNEF. Las de 5 minutos (demanda, generación) se promedian.
   mfrr_bajar:      {id: null, nombre: mFRR precio medio a bajar, unidad: €/MWh, tipo: precio}
-  afrr_banda_p_subir: {id: 10388, provisional: true, palabras: [reserva], nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
-  afrr_banda_p_bajar: {id: 10463, provisional: true, palabras: [reserva], nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
-  afrr_banda_subir:   {id: 630, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a subir, unidad: MW, tipo: banda_mw}
-  afrr_banda_bajar:   {id: 631, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a bajar, unidad: MW, tipo: banda_mw}
+  # Banda aFRR: 2130/634 (precio) y 632/633 (asignada) son las que usa UNEF y cuadran al decimal con
+  # su tabla. Desde el 25-oct-2026 ESIOS dejó de publicarlas; el respaldo 10388/10463 vale lo mismo
+  # hasta el 24-oct pero desde el 25-oct publica cifras que no son €/MW (decenas de miles): esos
+  # días se descartan con max_valido. La asignada no tiene respaldo: el requerimiento (630/631) va aparte.
+  afrr_banda_p_subir: {id: 2130, respaldo: 10388, max_valido: 1000, provisional: true, palabras: [reserva], nombre: aFRR banda a subir, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_p_bajar: {id: 634, respaldo: 10463, max_valido: 1000, provisional: true, palabras: [reserva], nombre: aFRR banda a bajar, unidad: €/MW, tipo: banda_precio}
+  afrr_banda_subir:   {id: 632, provisional: true, palabras: [reserva], nombre: Banda aFRR asignada a subir, unidad: MW, tipo: banda_mw}
+  afrr_banda_bajar:   {id: 633, provisional: true, palabras: [reserva], nombre: Banda aFRR asignada a bajar, unidad: MW, tipo: banda_mw}
+  afrr_req_subir:     {id: 630, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a subir, unidad: MW, tipo: banda_mw}
+  afrr_req_bajar:     {id: 631, provisional: true, palabras: [reserva], nombre: Banda aFRR requerida a bajar, unidad: MW, tipo: banda_mw}
   casada_diario:   {id: 602, provisional: true, palabras: [diario], nombre: Energía casada mercado diario, unidad: MW, tipo: energia}
   casada_ida1:     {id: 605, provisional: true, palabras: [intradiario], nombre: Energía casada IDA1, unidad: MW, tipo: energia}
   casada_ida2:     {id: 606, provisional: true, palabras: [intradiario], nombre: Energía casada IDA2, unidad: MW, tipo: energia}
