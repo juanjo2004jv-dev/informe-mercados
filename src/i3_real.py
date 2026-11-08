@@ -28,8 +28,21 @@ def _num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool) and not (isinstance(v, float) and np.isnan(v))
 
 
-def leer(filas):
-    """-> lista de (dict etiquetas por cabecera, vector periodos con NaN). Cabecera: fila con 'Total'."""
+def _periodo_cab(c):
+    try:
+        x = float(str(c).strip().replace(",", "."))
+    except ValueError:
+        return None
+    return int(x) if x.is_integer() and 1 <= x <= 100 else None
+
+
+def leer(filas, n=None):
+    """-> lista de (dict etiquetas por cabecera, vector periodos con NaN). Cabecera: fila con 'Total'.
+
+    Cada valor se coloca en el periodo que dice SU cabecera, no por posición: algunas hojas
+    (p. ej. la 10, precios de restricciones en tiempo real) omiten los periodos sin precio
+    (cabecera «...;11;12;29;30;...») y leerlas por posición desalineaba todo el día.
+    `n`: longitud del vector (periodos del día); por defecto, el mayor periodo de la cabecera."""
     cab = None
     for i, f in enumerate(filas[:15]):
         if any(str(c).strip() == "Total" for c in f):
@@ -39,6 +52,14 @@ def leer(filas):
         return []
     h = [str(c).strip() for c in filas[cab]]
     it = h.index("Total")
+    cols = [(j, _periodo_cab(h[j])) for j in range(it + 1, len(h))]
+    cols = [(j, p) for j, p in cols if p]
+    if not cols:
+        return []
+    maxp = max(p for _, p in cols)
+    # hojas cuartohorarias (más de 25 periodos) se rellenan hasta los periodos del día; una
+    # hoja horaria (<= 25) conserva los suyos aunque el día sea cuartohorario
+    n = max(n, maxp) if (n and maxp > 25) else maxp
     out = []
     for f in filas[cab + 1:]:
         if len(f) <= it:
@@ -46,11 +67,58 @@ def leer(filas):
         lab = {h[j]: ("" if f[j] is None else str(f[j]).strip()) for j in range(it) if h[j]}
         if not any(lab.values()):
             continue
-        vec = np.array([float(v) if _num(v) else np.nan for v in f[it + 1:]], dtype=float)
+        vec = np.full(n, np.nan)
+        for j, p in cols:
+            if j < len(f) and _num(f[j]):
+                vec[p - 1] = float(f[j])
         if np.all(np.isnan(vec)):
             continue
         out.append((lab, vec))
     return out
+
+
+def periodos_dia(hojas):
+    """Cuartos de hora del día según las cabeceras de las hojas cuartohorarias (92/96/100);
+    None si todas son horarias."""
+    n = 0
+    for nombre in ("I3DIA01", "I3DIA02", "I3DIA13", "I3DIA14", "I3DIA03", "I3DIA18"):
+        filas = hojas.get(nombre) or []
+        for f in filas[:15]:
+            if any(str(c).strip() == "Total" for c in f):
+                ps = [p for p in (_periodo_cab(c) for c in f) if p]
+                if ps and max(ps) > 25:
+                    n = max(n, max(ps))
+                break
+    return n or None
+
+
+def vector_precio(serie, dia, n):
+    """Precio ESIOS (Serie con índice UTC, cuartohoraria u horaria) colocado en los n periodos
+    del día del I3 por FECHA Y HORA, no por posición. Antes se usaba el vector tal cual: el
+    ESIOS devolvía 97 valores (fin inclusivo) y el diario nunca se valoraba, y el IDA3 (solo
+    12:00-24:00, 48 valores) se estiraba repitiendo cada precio dos veces sobre el día entero."""
+    if serie is None:
+        return None
+    if not isinstance(serie, pd.Series):
+        v = np.asarray(serie, float)
+        return v if len(v) == n else None
+    if not len(serie) or not n:
+        return None
+    ini = pd.Timestamp(dia).tz_localize("Europe/Madrid").tz_convert("UTC")
+    fin = (pd.Timestamp(dia) + pd.Timedelta(days=1)).tz_localize("Europe/Madrid").tz_convert("UTC")
+    paso = (fin - ini) / n
+    idx = ini + paso * np.arange(n)
+    s = serie[~serie.index.duplicated()].sort_index()
+    s = s[(s.index >= ini - pd.Timedelta(hours=1)) & (s.index < fin)]
+    if not len(s):
+        return None
+    if paso >= pd.Timedelta(minutes=59):                    # I3 horario: media de los cuartos de cada hora
+        return np.array([s[(s.index >= t) & (s.index < t + paso)].mean() for t in idx], dtype=float)
+    v = s.reindex(idx)
+    paso_s = s.index.to_series().diff().median() if len(s) > 1 else pd.Timedelta(minutes=15)
+    if paso_s >= pd.Timedelta(minutes=59):                  # serie horaria (continuo): se repite en sus cuartos
+        v = v.fillna(s.reindex(idx, method="ffill", tolerance=pd.Timedelta(minutes=59)))
+    return v.to_numpy(dtype=float)
 
 
 class Tec:
@@ -61,7 +129,7 @@ class Tec:
     def __call__(self, nombre):
         s = sin(nombre)
         if s in ("fuel-gas", "fuel gas"):
-            return "Turbina vapor, gas y fuel"
+            return "Fuel-gas"                     # UNEF y REE la separan de «Turbina vapor, gas y fuel»
         if s in self.exacto:
             return self.exacto[s]
         for k, t in self.kw:
@@ -88,8 +156,18 @@ def _ajusta(p, n):
     return None
 
 
+def _media_filas(vs):
+    n = max(len(v) for v in vs)
+    m = np.full((len(vs), n), np.nan)
+    for i, v in enumerate(vs):
+        m[i, :len(v)] = v
+    cuenta = (~np.isnan(m)).sum(axis=0)
+    return np.where(cuenta > 0, np.nansum(m, axis=0) / np.maximum(cuenta, 1), np.nan)
+
+
 def _ing(en, pr):
-    pr = _ajusta(pr, len(en))
+    if pr is not None and len(pr) != len(en):
+        pr = _ajusta(pr, len(en))
     if pr is None:
         return None
     ok = ~np.isnan(en) & ~np.isnan(pr)
@@ -102,13 +180,21 @@ def procesar(hojas, dia, precios=None):
     precios = precios or {}
     tec = Tec(cargar_mapa())
     filas, aviso = [], {}
+    N = periodos_dia(hojas)
+    _cache = {}
+
+    def P(clave, n):
+        """Precio ESIOS `clave` colocado en n periodos del día (por fecha y hora)."""
+        if (clave, n) not in _cache:
+            _cache[(clave, n)] = vector_precio(precios.get(clave), dia, n)
+        return _cache[(clave, n)]
 
     def add(mercado, t, mag, valor, fase="", tip="", sent=""):
         filas.append({"fecha": dia, "mercado": mercado, "tecnologia": t, "magnitud": mag, "fase": fase, "tipologia": tip, "sentido": sent, "valor": float(valor)})
 
     def hoja(n):
         d = hojas.get(f"I3DIA{n:02d}")
-        return leer(d) if d else []
+        return leer(d, N) if d else []
 
     def energia(mercado, t, vec, **kw):
         add(mercado, t, "energia", np.nansum(vec), **kw)
@@ -130,7 +216,7 @@ def procesar(hojas, dia, precios=None):
             energia("Bilaterales", t, v)
         else:
             energia("Diario", t, v)
-            i = _ing(v, precios.get("spot"))
+            i = _ing(v, P("spot", len(v)))
             if i is not None:
                 add("Diario", t, "ingreso", i)
     # ---- intradiarios (diferencias entre programas, solo periodos que cubre cada sesión) y continuo
@@ -161,7 +247,7 @@ def procesar(hojas, dia, precios=None):
             if np.abs(d).sum() > 0:
                 sg = "Subir" if d.sum() > 0 else "Bajar"
                 add(nombre, t, "energia", d.sum(), sent=sg)
-                i = _ing(d, precios.get(f"ida{ida}"))
+                i = _ing(d, P(f"ida{ida}", len(d)))
                 if i is not None:
                     add(nombre, t, "ingreso", i, sent=sg)
     for lab, v in hoja(18):
@@ -174,7 +260,7 @@ def procesar(hojas, dia, precios=None):
         if np.abs(d).sum() > 0:
             sg = "Subir" if d.sum() > 0 else "Bajar"
             add("Continuo", t, "energia", d.sum(), sent=sg)
-            i = _ing(d, precios.get("continuo"))
+            i = _ing(d, P("continuo", len(d)))
             if i is not None:
                 add("Continuo", t, "ingreso", i, sent=sg)
 
@@ -186,7 +272,6 @@ def procesar(hojas, dia, precios=None):
         return p
 
     p_md, p_tr = tabla_precios(9), tabla_precios(10)
-    spot = precios.get("spot")
 
     # ---- restricciones del mercado diario (fase I y II)
     for lab, v in hoja(3):
@@ -203,8 +288,8 @@ def procesar(hojas, dia, precios=None):
             i = _ing(v, pr)
             if i is not None:
                 add("Restricciones MD", t, "ingreso", i, fase, tip, sent)
-        if fase == FASE1 and sent == "Subir" and tip in ("COT", "SOT") and spot is not None:
-            x = _ing(v, spot)
+        if fase == FASE1 and sent == "Subir" and tip in ("COT", "SOT") and P("spot", len(v)) is not None:
+            x = _ing(v, P("spot", len(v)))
             if x is not None:
                 add("Restricciones MD", t, "energia_x_spot", x, fase, tip, sent)
     # ---- restricciones de tiempo real y otros ajustes
@@ -225,7 +310,8 @@ def procesar(hojas, dia, precios=None):
     # ---- terciaria
     pt = {}
     for lab, v in hoja(16):
-        pt[(lab.get("Redespacho", ""), lab.get("Sentido", ""))] = v
+        pt.setdefault((lab.get("Redespacho", ""), lab.get("Sentido", "")), []).append(v)
+    pt = {k: (_media_filas(v) if len(v) > 1 else v[0]) for k, v in pt.items()}
     for lab, v in hoja(7):
         t = tec(lab.get("Concepto", ""))
         if not t:
