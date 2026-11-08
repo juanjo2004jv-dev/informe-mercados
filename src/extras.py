@@ -37,6 +37,8 @@ def banda_vs_arbitraje(res, cfg):
         return None
     dias = pd.Series(res["spot"].index.tz_convert(A.TZ).date, index=res["spot"].index)
     banda = ((sub.fillna(0) + baj.fillna(0)) * 0.25).groupby(dias).sum()          # €/MW·día (precio €/MW·h × 0,25 h)
+    cob = (sub.notna() & baj.notna()).groupby(dias).mean()
+    banda = banda.where(cob >= 0.9)                                                 # día sin precio publicado: sin dato, no cero
     arb = pd.Series(res["bess_por_dia"])
     return pd.DataFrame({"arbitraje": arb, "banda": banda}).dropna()
 
@@ -95,7 +97,7 @@ def senales(res, cfg, bd):
     pr = bd.get("prima_afrr")
     if pr is not None:
         est = (VERDE, "Prima de balance alta") if pr > 25 else (AMBAR, "Prima moderada") if pr > 8 else (ROJO, "Prima baja")
-        fil.append(("Servicios de balance", est, f"aFRR a subir paga {n(pr, 1, True)} €/MWh sobre el diario. Regla: >25 verde, 8-25 ámbar."))
+        fil.append(("Servicios de balance", est, f"aFRR a subir paga {n(pr, 1, True)} €/MWh sobre el diario ({bd.get('prima_afrr_tipo', '')}). Regla: >25 verde, 8-25 ámbar."))
     d = res["demanda"]
     if d and "mape" in d:
         est = (VERDE, "Previsión precisa") if d["mape"] < 1.5 else (AMBAR, "Desvíos moderados") if d["mape"] < 3 else (ROJO, "Desvíos altos")
@@ -111,6 +113,15 @@ def resumen_extras(res, cfg):
     s = res["series"].get("afrr_subir")
     if s is not None and s.notna().mean() > 0.3:
         bd["prima_afrr"] = float((s - res["spot"]).mean())
+        bd["prima_afrr_tipo"] = "media simple de los cuartos de hora"
+        act = res["series"].get("afrr_energia_act_subir")
+        if act is not None and act.notna().mean() > 0.3:
+            m = s.notna() & res["spot"].notna() & act.notna() & (act > 0)
+            if m.sum() and act[m].sum() > 0:
+                # lo que importa a quien presta el servicio es el precio cuando le activan:
+                # se pondera por la energía activada a subir (ID 680)
+                bd["prima_afrr"] = float(((s - res["spot"])[m] * act[m]).sum() / act[m].sum())
+                bd["prima_afrr_tipo"] = "ponderada por la energía activada a subir"
     return bd
 
 
