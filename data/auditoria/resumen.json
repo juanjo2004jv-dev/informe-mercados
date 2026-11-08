@@ -380,7 +380,7 @@
  },
  "10388": {
   "nombre": "Precio medio ponderado reserva de regulación secundaria a subir",
-  "n": 3365,
+  "n": 1345,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -402,7 +402,7 @@
  },
  "10463": {
   "nombre": "Precio medio ponderado reserva de regulación secundaria a bajar",
-  "n": 3365,
+  "n": 1345,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -1052,7 +1052,7 @@
  },
  "553": {
   "nombre": "Generación T.Real intercambios",
-  "n": 9974,
+  "n": 3944,
   "magnitud": [
    {
     "name": "Potencia",
@@ -1272,7 +1272,7 @@
  },
  "2166": {
   "nombre": "Almacenamiento T.Real Carga Baterías",
-  "n": 9974,
+  "n": 3944,
   "magnitud": [
    {
     "name": "Potencia",
@@ -1294,7 +1294,7 @@
  },
  "2167": {
   "nombre": "Almacenamiento T.Real Entrega Baterías",
-  "n": 9974,
+  "n": 3944,
   "magnitud": [
    {
     "name": "Potencia",
@@ -1599,6 +1599,94 @@
    [
     8,
     "Castilla y León"
+   ]
+  ]
+ },
+ "712": {
+  "nombre": "Coste de reserva de regulación secundaria a subir",
+  "n": 1345,
+  "magnitud": [
+   {
+    "name": "Coste",
+    "id": 24
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2127": {
+  "nombre": "Coste de reserva de regulación secundaria a bajar",
+  "n": 1345,
+  "magnitud": [
+   {
+    "name": "Coste",
+    "id": 24
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "899": {
+  "nombre": "Coste asignación de reserva de regulación secundaria a subir",
+  "n": 1345,
+  "magnitud": [
+   {
+    "name": "Coste",
+    "id": 24
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2129": {
+  "nombre": "Coste asignación de reserva de regulación secundaria a bajar",
+  "n": 1345,
+  "magnitud": [
+   {
+    "name": "Coste",
+    "id": 24
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
    ]
   ]
  }
