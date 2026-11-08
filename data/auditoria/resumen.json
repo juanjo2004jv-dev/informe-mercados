@@ -1,0 +1,877 @@
+{
+ "600": {
+  "nombre": "Precio mercado SPOT Diario",
+  "n": 12126,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    1,
+    "Portugal"
+   ],
+   [
+    2,
+    "Francia"
+   ],
+   [
+    3,
+    "España"
+   ],
+   [
+    8826,
+    "Alemania"
+   ],
+   [
+    8827,
+    "Bélgica"
+   ],
+   [
+    8828,
+    "Países Bajos"
+   ]
+  ]
+ },
+ "612": {
+  "nombre": "Precio mercado SPOT Intradiario Sesión 1",
+  "n": 3658,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    1,
+    "Portugal"
+   ],
+   [
+    3,
+    "España"
+   ]
+  ]
+ },
+ "613": {
+  "nombre": "Precio mercado SPOT Intradiario Sesión 2",
+  "n": 4042,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    1,
+    "Portugal"
+   ],
+   [
+    3,
+    "España"
+   ]
+  ]
+ },
+ "614": {
+  "nombre": "Precio mercado SPOT Intradiario Sesión 3",
+  "n": 2016,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    1,
+    "Portugal"
+   ],
+   [
+    3,
+    "España"
+   ]
+  ]
+ },
+ "1727": {
+  "nombre": "Precio de referencia en Mercado Intradiario Continuo",
+  "n": 483,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Hora",
+    "id": 4
+   }
+  ],
+  "geos": [
+   [
+    3,
+    "España"
+   ]
+  ]
+ },
+ "602": {
+  "nombre": "Energía asignada en Mercado SPOT Diario España",
+  "n": 2000,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "605": {
+  "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 1",
+  "n": 1829,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "606": {
+  "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 2",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "607": {
+  "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 3",
+  "n": 1008,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1442": {
+  "nombre": "Energía asignada en Mercado Intradiario Continuo",
+  "n": 482,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Hora",
+    "id": 4
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "682": {
+  "nombre": "Precio de energía de regulación secundaria a subir",
+  "n": 2019,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "683": {
+  "nombre": "Precio de energía de regulación secundaria a bajar",
+  "n": 2019,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "680": {
+  "nombre": "Energía activada  de regulación secundaria a subir en el sepe",
+  "n": 2019,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "681": {
+  "nombre": "Energía activada  de regulación secundaria a bajar en el sepe",
+  "n": 2019,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2197": {
+  "nombre": "Precio energías de balance mFRR de activación programada",
+  "n": 1995,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2196": {
+  "nombre": "Precio necesidad elástica de energías de balance mFRR de activación programada",
+  "n": 0,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": []
+ },
+ "10388": {
+  "nombre": "Precio medio ponderado reserva de regulación secundaria a subir",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Precio €/MW",
+    "id": 239
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10463": {
+  "nombre": "Precio medio ponderado reserva de regulación secundaria a bajar",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Precio €/MW",
+    "id": 239
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "630": {
+  "nombre": "Requerimientos reserva de regulación secundaria a subir",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "631": {
+  "nombre": "Requerimientos reserva de regulación secundaria a bajar",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "632": {
+  "nombre": "Asignación reserva de regulación secundaria a subir",
+  "n": 1248,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "633": {
+  "nombre": "Asignación reserva de regulación secundaria a bajar",
+  "n": 1248,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "634": {
+  "nombre": "Precio reserva de regulación secundaria a bajar",
+  "n": 1248,
+  "magnitud": [
+   {
+    "name": "Precio €/MW",
+    "id": 239
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "2130": {
+  "nombre": "Precio Reserva de regulación secundaria a subir",
+  "n": 1248,
+  "magnitud": [
+   {
+    "name": "Precio €/MW",
+    "id": 239
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "674": {
+  "nombre": "Asignación programada a bajar de energías mFRR SEE (AP)",
+  "n": 1927,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "675": {
+  "nombre": "Asignación programada a subir de energías mFRR SEE (AP)",
+  "n": 1885,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "676": {
+  "nombre": "Precio marginal regulación terciaria a bajar de activación programada (AP)",
+  "n": 0,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": []
+ },
+ "677": {
+  "nombre": "Precio marginal regulación terciaria a subir de activación programada (AP)",
+  "n": 0,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": []
+ },
+ "10394": {
+  "nombre": "Asignación a bajar de energías mFRR SEE",
+  "n": 1928,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10395": {
+  "nombre": "Asignación a subir de energías mFRR SEE",
+  "n": 1887,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10396": {
+  "nombre": "Asignación directa a subir de energías mFRR SEE (AD)",
+  "n": 29,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10397": {
+  "nombre": "Asignación directa a bajar de energías mFRR SEE (AD)",
+  "n": 29,
+  "magnitud": [
+   {
+    "name": "Energía",
+    "id": 13
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10398": {
+  "nombre": "Precio medio ponderado regulación terciaria a subir de activación programada (AP)",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "10399": {
+  "nombre": "Precio medio ponderado regulación terciaria a bajar de activación programada (AP)",
+  "n": 2021,
+  "magnitud": [
+   {
+    "name": "Precio €/MWh",
+    "id": 23
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Quince minutos",
+    "id": 218
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1293": {
+  "nombre": "Demanda real Peninsular",
+  "n": 6061,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "544": {
+  "nombre": "Demanda prevista Peninsular",
+  "n": 6061,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "545": {
+  "nombre": "Demanda programada Peninsular",
+  "n": 6061,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "551": {
+  "nombre": "Generación T.Real eólica",
+  "n": 6061,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ },
+ "1295": {
+  "nombre": "Generación T.Real Solar fotovoltaica",
+  "n": 6061,
+  "magnitud": [
+   {
+    "name": "Potencia",
+    "id": 20
+   }
+  ],
+  "tiempo": [
+   {
+    "name": "Cinco minutos",
+    "id": 219
+   }
+  ],
+  "geos": [
+   [
+    8741,
+    "Península"
+   ]
+  ]
+ }
+}
