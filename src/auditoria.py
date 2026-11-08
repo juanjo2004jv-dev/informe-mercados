@@ -34,14 +34,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--desde", required=True)
     ap.add_argument("--hasta", required=True)
-    ap.add_argument("--i3", default="2026-10-22,2026-10-28")
+    ap.add_argument("--i3", default="")
+    ap.add_argument("--ids", default="", help="IDs separados por coma; vacío = lista por defecto")
+    ap.add_argument("--agregacion", action="store_true", help="prueba también time_trunc/time_agg")
     a = ap.parse_args()
+    ids = [int(x) for x in a.ids.split(",") if x.strip()] or IDS
     OUT.mkdir(parents=True, exist_ok=True)
     cli = Esios()
     ini = pd.Timestamp(a.desde).tz_localize(TZ)
     fin = pd.Timestamp(a.hasta).tz_localize(TZ)
     resumen = {}
-    for i in IDS:
+    for i in ids:
         try:
             ind = crudo(cli, i, ini, fin)
         except Exception as e:
@@ -57,7 +60,7 @@ def main():
     dia_i = pd.Timestamp("2026-10-22").tz_localize(TZ)
     dia_f = pd.Timestamp("2026-10-23").tz_localize(TZ)
     agg = {}
-    for i in (1293, 551, 10388, 602, 680, 600):
+    for i in ((1293, 551, 10388, 602, 680, 600) if a.agregacion else ()):
         agg[i] = {}
         for nombre, extra in (("crudo", {}), ("qh", {"time_trunc": "fifteen_minutes"}),
                               ("qh_avg", {"time_trunc": "fifteen_minutes", "time_agg": "average"}),
@@ -68,8 +71,11 @@ def main():
                 agg[i][nombre] = {"n": len(v), "primeros": [(x.get("datetime_utc"), x.get("geo_id"), x.get("value")) for x in v[:8]]}
             except Exception as e:
                 agg[i][nombre] = {"error": str(e)[:200]}
-    (OUT / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
-    (OUT / "agregacion.json").write_text(json.dumps(agg, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    previo = json.loads((OUT / "resumen.json").read_text(encoding="utf-8")) if (OUT / "resumen.json").exists() else {}
+    previo.update({str(k): v for k, v in resumen.items()})
+    (OUT / "resumen.json").write_text(json.dumps(previo, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    if agg:
+        (OUT / "agregacion.json").write_text(json.dumps(agg, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     from .i3 import descargar_dia
 
     for d in [x for x in a.i3.split(",") if x]:
