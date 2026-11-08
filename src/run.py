@@ -6,6 +6,7 @@ import json
 import sys
 import unicodedata
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import pandas as pd
@@ -90,6 +91,14 @@ def descargar(cfg, lunes):
                 datos.pop(k, None)
                 continue
         meta[k] = m
+    # mix de generación y balance (baterías, bombeo, intercambios): solo la semana; si falla, se omite
+    for grupo, pref in (("mix", "mix_"), ("balance", "bal_")):
+        for k, v in (cfg.get(grupo) or {}).items():
+            try:
+                _, s = cli.serie(v["id"], ini, fin, v.get("geo"))
+                datos[pref + k] = s
+            except Exception as e:
+                meta[pref + k] = {"nombre": v["nombre"], "id": v["id"], "api": "—", "aviso": f"no se pudo descargar ({str(e)[:80]})"}
     return datos, meta
 
 
@@ -117,13 +126,33 @@ def cargar_i3(lunes, res, demo):
     ok, msg = I.validar(sem)
     if not ok:
         return None, None, msg + ["Se omiten las secciones basadas en I3."]
-    return sem, alm, msg
+    hist = alm[f <= pd.Timestamp(lunes + timedelta(days=6))]       # el histórico acaba con la semana del informe
+    return sem, hist, msg
 
 
-def actualizar_historial(res):
+def i3_completo(lunes):
+    """True si el I3 de los 7 días de la semana ya está en el almacén (descarga lo que falte)."""
+    from . import i3 as I
+
+    try:
+        alm, _, _ = I.actualizar(date(2025, 1, 1), lunes + timedelta(days=6), maxdias=120)
+    except Exception as e:
+        print(f"I3: no se pudo actualizar ({str(e)[:120]})")
+        return False
+    if not len(alm):
+        return False
+    f = pd.to_datetime(alm["fecha"])
+    return f[(f >= pd.Timestamp(lunes)) & (f <= pd.Timestamp(lunes + timedelta(days=6)))].nunique() >= 7
+
+
+def leer_historial():
     ruta = RAIZ / "data" / "historial.json"
-    hist = json.loads(ruta.read_text(encoding="utf-8")) if ruta.exists() else []
-    hist = [h for h in hist if h["etiqueta"] != res["etiqueta"]]
+    return json.loads(ruta.read_text(encoding="utf-8")) if ruta.exists() else []
+
+
+def actualizar_historial(res, completo, paginas):
+    ruta = RAIZ / "data" / "historial.json"
+    hist = [h for h in leer_historial() if h["etiqueta"] != res["etiqueta"]]
     hist.append(
         {
             "etiqueta": res["etiqueta"],
@@ -132,6 +161,9 @@ def actualizar_historial(res):
             "horas_neg": res["horas_neg"],
             "bess_dia": round(res["bess_dia"], 1),
             "spread_medio": round(res["spread_medio"], 1),
+            "completo": bool(completo),
+            "paginas": int(paginas),
+            "generado": datetime.now(ZoneInfo(TZ)).strftime("%Y-%m-%d %H:%M"),
         }
     )
     hist.sort(key=lambda h: h["etiqueta"])
@@ -142,7 +174,8 @@ def actualizar_historial(res):
 def escribir_archivo(hist):
     filas = "\n".join(
         f'<li><a href="semanas/{h["etiqueta"]}.pdf">Semana {h["etiqueta"][-2:]} de {h["etiqueta"][:4]} (PDF)</a> · <a href="semanas/{h["etiqueta"]}.html">versión web</a> '
-        f'<span>{h["rango"]} · {h["precio_medio"]:.1f} €/MWh · techo batería {h["bess_dia"]:.0f} €/MW·día</span></li>'
+        f'<span>{h["rango"]} · {h["precio_medio"]:.1f} €/MWh · techo batería {h["bess_dia"]:.0f} €/MW·día'
+        f'{"" if h.get("completo", True) else " · provisional, sin I3"}</span></li>'
         for h in reversed(hist)
     )
     (DOCS / "archivo.html").write_text(
@@ -174,9 +207,16 @@ def main():
     iso = lunes.isocalendar()
     etiqueta = f"{iso.year}-S{iso.week:02d}"
     destino = DOCS / "demo.html" if a.demo else DOCS / "semanas" / f"{etiqueta}.html"
+    previo = next((h for h in leer_historial() if h["etiqueta"] == etiqueta), None)
     if destino.exists() and not a.force and not a.demo:
-        print(f"{etiqueta}: ya existe, nada que hacer.")
-        return
+        if previo is None or previo.get("completo", True):
+            print(f"{etiqueta}: ya existe y está completo, nada que hacer.")
+            return
+        # el lunes sale provisional (el I3 llega a D+4): se rehace cuando el I3 de la semana está entero
+        if not i3_completo(lunes):
+            print(f"{etiqueta}: publicado como provisional; el I3 de la semana aún no está completo. Se reintentará.")
+            return
+        print(f"{etiqueta}: el I3 ya está completo; se regenera el informe con todas las secciones.")
 
     ini_base, _ = A.limites_semana(A.lunes_k(lunes, 4))
     _, fin = A.limites_semana(lunes)
@@ -192,27 +232,56 @@ def main():
     if cob < cfg["umbral_cobertura_spot"] and not a.force:
         sys.exit(f"Cobertura del precio spot insuficiente ({cob:.1%}). Se reintentará en la siguiente ejecución.")
 
-    html = render(res, cfg, meta, demo=a.demo, base="" if a.demo else "../", pdf_url=f"{etiqueta}.pdf" if not a.demo else "demo.pdf")
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    destino.write_text(html, encoding="utf-8")
-    print(f"Generado {destino.relative_to(RAIZ)} (cobertura spot {cob:.1%})")
     i3, i3_hist, i3_estado = cargar_i3(lunes, res, a.demo)
+    res["provisional"] = i3 is None
+    res["i3_estado"] = i3_estado
+    res["i3_resumen"] = resumen_i3(i3) if i3 is not None else None
+    from . import historico as Hs
+
+    hs = Hs.actualizar(res, cfg, guardar=not a.demo)
+    res["historico"] = hs
     pdf = destino.with_suffix(".pdf")
     img_dir = None
     if not a.demo:
         img_dir = DOCS / "paginas"
         shutil.rmtree(img_dir, ignore_errors=True)
         img_dir.mkdir(parents=True, exist_ok=True)
+    destino.parent.mkdir(parents=True, exist_ok=True)
     paginas, lista_pag = generar_pdf(res, cfg, meta, pdf, demo=a.demo, i3=i3, i3_hist=i3_hist, i3_estado=i3_estado, img_dir=img_dir)
-    print(f"Generado {pdf.relative_to(RAIZ)} ({paginas} páginas)")
+    print(f"Generado {pdf.relative_to(RAIZ)} ({paginas} páginas, {'provisional sin I3' if res['provisional'] else 'completo con I3'})")
+    html = render(res, cfg, meta, demo=a.demo, base="" if a.demo else "../", paginas=lista_pag, pdf_url=f"{etiqueta}.pdf" if not a.demo else "demo.pdf", npag=paginas)
+    destino.write_text(html, encoding="utf-8")
+    print(f"Generado {destino.relative_to(RAIZ)} (cobertura spot {cob:.1%})")
     if not a.demo:
         (DOCS / "index.html").write_text(render(res, cfg, meta, demo=False, base="", paginas=lista_pag, pdf_url="ultimo.pdf", npag=paginas), encoding="utf-8")
         shutil.copyfile(pdf, DOCS / "ultimo.pdf")
-        escribir_archivo(actualizar_historial(res))
+        escribir_archivo(actualizar_historial(res, not res["provisional"], paginas))
         salida = os.environ.get("GITHUB_OUTPUT")
         if salida:
             with open(salida, "a") as f:
                 f.write(f"pdf={pdf.relative_to(RAIZ)}\n")
+                f.write(f"estado={'provisional' if res['provisional'] else 'completo'}\n")
+
+
+def resumen_i3(i3):
+    """Cifras del almacenamiento según la liquidación (I3) de la semana."""
+    out = {}
+    for tec in ("Almacenamiento generación", "Almacenamiento consumo"):
+        x = i3[i3["tecnologia"] == tec]
+        e = x[x["magnitud"] == "energia"]
+        ing = x[x["magnitud"] == "ingreso"]
+        merc = [m for m in ("Diario", "Intradiario 1", "Intradiario 2", "Intradiario 3", "Continuo", "Restricciones MD", "Restricciones TR", "Terciaria")]
+        out[tec] = {
+            "p48_mwh": float(e[e["mercado"] == "P48"]["valor"].sum()),
+            "pbf_mwh": float(e[e["mercado"] == "PBF"]["valor"].sum()),
+            "ingreso": float(ing[ing["mercado"].isin(merc)]["valor"].sum()),
+            "ingreso_mercado": {m: float(ing[ing["mercado"] == m]["valor"].sum()) for m in merc if (ing["mercado"] == m).any()},
+        }
+    g, c = out["Almacenamiento generación"], out["Almacenamiento consumo"]
+    out["neto"] = g["ingreso"] + c["ingreso"]
+    out["precio_venta"] = g["ingreso"] / g["p48_mwh"] if g["p48_mwh"] > 0 else float("nan")
+    out["precio_compra"] = -c["ingreso"] / -c["p48_mwh"] if c["p48_mwh"] < 0 else float("nan")
+    return out
 
 
 if __name__ == "__main__":
