@@ -51,6 +51,14 @@ jobs:
           DEMO: ${{ inputs.demo && '--demo' || '' }}
         run: python -m src.run --semana "$SEMANA" $FORZAR $DEMO
 
+      - name: Revisar semanas con precios del I3 pendientes
+        # si REE publicó algún día del I3 sin precios, la semana se rehace sola cuando los complete
+        if: ${{ github.event_name == 'schedule' }}
+        continue-on-error: true
+        env:
+          ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
+        run: python -m src.run --semana pendientes
+
       - name: Enviar PDF por correo (opcional)
         if: steps.gen.outputs.pdf != ''
         env:
@@ -67,6 +75,7 @@ jobs:
           path: ${{ steps.gen.outputs.pdf }}
 
       - name: Publicar en el repositorio
+        if: ${{ always() }}
         run: |
           git config user.name "informe-bot"
           git config user.email "informe-bot@users.noreply.github.com"
