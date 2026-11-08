@@ -51,9 +51,10 @@ def _con_respaldo(cli, v, s, ini, fin):
     txt = f"la serie {v['id']} solo cubre el {cob:.0%} de la semana"
     if len(r):
         s = r if not len(s) else s.combine_first(r)
-        txt += f"; huecos completados con la {resp}"
+        if (A.alinear(s, rej).notna().mean() if len(s) else 0.0) > cob + 0.005:
+            txt += f"; huecos completados con la {resp}"
     if descartados:
-        txt += f"; la {resp} da valores fuera de rango los días {', '.join(d.strftime('%d-%m') for d in descartados)} (publica el coste en €, no el precio)"
+        txt += f"; la {resp} publica esos días el coste en € y no el precio (se descarta)"
     est = v.get("estimar")
     cob2 = A.alinear(s, rej).notna().mean() if len(s) else 0.0
     if est and cob2 < 0.95:
@@ -70,7 +71,7 @@ def _con_respaldo(cli, v, s, ini, fin):
                 s = e if not len(s) else s.combine_first(e)
                 if dias_est:
                     txt += (f"; los días {', '.join(d.strftime('%d-%m') for d in dias_est)} se ESTIMAN como coste de la reserva (ID {est['coste']}) ÷ "
-                            f"banda requerida (ID {est['banda']}) porque ESIOS no publicó la banda asignada (comprobado con los días con dato oficial: error medio inferior al 1 %)")
+                            f"banda requerida (ID {est['banda']}), con un error medio inferior al 1 % frente al dato oficial")
         except Exception as ex:
             txt += f"; no se pudo estimar ({str(ex)[:60]})"
     return s, txt + "."
