@@ -26,6 +26,18 @@ def _sin_acentos(s):
     return "".join(c for c in unicodedata.normalize("NFD", s.lower()) if unicodedata.category(c) != "Mn")
 
 
+def _dias_txt(dias):
+    """[26-10, 27-10, 28-10, 30-10] -> «26-10 a 28-10 y 30-10» (tramos de días seguidos)."""
+    tramos = []
+    for d in sorted(dias):
+        if tramos and (d - tramos[-1][1]).days == 1:
+            tramos[-1][1] = d
+        else:
+            tramos.append([d, d])
+    txt = [a.strftime("%d-%m") if a == b else f"{a:%d-%m} a {b:%d-%m}" for a, b in tramos]
+    return txt[0] if len(txt) == 1 else ", ".join(txt[:-1]) + " y " + txt[-1]
+
+
 def _con_respaldo(cli, v, s, ini, fin):
     """Si la serie principal no cubre la semana y hay `respaldo`, completa los huecos con él.
     `max_valido` descarta DÍAS enteros del respaldo con valores imposibles (p. ej. desde el
@@ -70,7 +82,7 @@ def _con_respaldo(cli, v, s, ini, fin):
                 dias_est = sorted(set(e.index[e.index.isin(rej[hueco])].tz_convert(TZ).date))
                 s = e if not len(s) else s.combine_first(e)
                 if dias_est:
-                    txt += (f"; los días {', '.join(d.strftime('%d-%m') for d in dias_est)} se ESTIMAN como coste de la reserva (ID {est['coste']}) ÷ "
+                    txt += (f"; {'los días' if len(dias_est) > 1 else 'el día'} {_dias_txt(dias_est)} se {'ESTIMAN' if len(dias_est) > 1 else 'ESTIMA'} como coste de la reserva (ID {est['coste']}) ÷ "
                             f"banda requerida (ID {est['banda']}), con un error medio inferior al 1 % frente al dato oficial")
         except Exception as ex:
             txt += f"; no se pudo estimar ({str(ex)[:60]})"
