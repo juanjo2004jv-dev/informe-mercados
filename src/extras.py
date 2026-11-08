@@ -40,7 +40,8 @@ def banda_vs_arbitraje(res, cfg):
     cob = (sub.notna() & baj.notna()).groupby(dias).mean()
     banda = banda.where(cob >= 0.9)                                                 # día sin precio publicado: sin dato, no cero
     arb = pd.Series(res["bess_por_dia"])
-    return pd.DataFrame({"arbitraje": arb, "banda": banda}).dropna()
+    df = pd.DataFrame({"arbitraje": arb, "banda": banda}).dropna()
+    return None if df.empty else df
 
 
 def sensibilidad_residual(res):
@@ -93,7 +94,14 @@ def senales(res, cfg, bd):
     fil.append(("Almacenamiento (arbitraje)", est, f"{n(b, 0)} €/MW·día, {n(v, 1, True)} % frente a la media de 4 semanas. Regla: ±10 %."))
     sp = res["spread_medio"]
     est = (VERDE, "Spread amplio") if sp > 120 else (AMBAR, "Spread medio") if sp > 60 else (ROJO, "Spread estrecho")
-    fil.append(("Volatilidad intradía", est, f"Spread diario medio {n(sp, 0)} €/MWh. Regla: >120 verde, 60-120 ámbar, <60 rojo."))
+    tb4 = (res.get("tb") or {}).get(4)
+    extra = f" TB4 {n(tb4, 0)} €/MWh." if tb4 == tb4 and tb4 is not None else ""
+    fil.append(("Volatilidad intradía", est, f"Spread diario medio {n(sp, 0)} €/MWh.{extra} Regla: >120 verde, 60-120 ámbar, <60 rojo."))
+    mm = res.get("multimercado")
+    if mm and mm.get("uplift") == mm.get("uplift"):
+        u = mm["uplift"]
+        est = (VERDE, "Intradiario aporta mucho") if u > 20 else (AMBAR, "Intradiario aporta algo") if u > 8 else (ROJO, "Intradiario aporta poco")
+        fil.append(("Arbitraje en intradiario", est, f"Techo con diario + IDA1-3: {n(mm['media'], 0)} €/MW·día ({n(u, 0, True)} % sobre solo diario). Regla: >20 % verde, 8-20 % ámbar."))
     pr = bd.get("prima_afrr")
     if pr is not None:
         est = (VERDE, "Prima de balance alta") if pr > 25 else (AMBAR, "Prima moderada") if pr > 8 else (ROJO, "Prima baja")
@@ -113,7 +121,7 @@ def resumen_extras(res, cfg):
     s = res["series"].get("afrr_subir")
     if s is not None and s.notna().mean() > 0.3:
         bd["prima_afrr"] = float((s - res["spot"]).mean())
-        bd["prima_afrr_tipo"] = "media simple de los cuartos de hora"
+        bd["prima_afrr_tipo"] = "media simple"
         act = res["series"].get("afrr_energia_act_subir")
         if act is not None and act.notna().mean() > 0.3:
             m = s.notna() & res["spot"].notna() & act.notna() & (act > 0)
@@ -121,7 +129,7 @@ def resumen_extras(res, cfg):
                 # lo que importa a quien presta el servicio es el precio cuando le activan:
                 # se pondera por la energía activada a subir (ID 680)
                 bd["prima_afrr"] = float(((s - res["spot"])[m] * act[m]).sum() / act[m].sum())
-                bd["prima_afrr_tipo"] = "ponderada por la energía activada a subir"
+                bd["prima_afrr_tipo"] = "ponderada por energía activada"
     return bd
 
 
@@ -211,7 +219,8 @@ def sec_banda(d, res, cfg):
     fig = d.diapositiva("Arbitraje frente a reservar banda aFRR",
                         "Para una batería de 1 MW: lo que habría dado el arbitraje del diario frente a ofrecer 1 MW de banda aFRR simétrica todo el día. No se suman, porque la "
                         "misma potencia no puede estar en los dos sitios, pero comparar ambos muestra qué mercado domina cada día.",
-                        "Fuente: ESIOS (REE) y OMIE. La banda se aproxima como Σ(precio a subir + precio a bajar) × 0,25 h por cuarto de hora, sin activación ni penalizaciones. Aproximación, no liquidación.")
+                        "Fuente: ESIOS (REE) y OMIE. La banda se aproxima como Σ(precio a subir + precio a bajar) × 0,25 h por cuarto de hora, sin activación ni penalizaciones. Aproximación, no liquidación."
+                        + (" " + res["nota_banda"] if res.get("nota_banda") else ""))
     ax = d.eje(fig)
     x = np.arange(len(bb))
     ax.bar(x - 0.2, bb["arbitraje"], 0.38, color=C["verde"], label="Arbitraje (diario, 4 h)")
@@ -448,7 +457,7 @@ def sec_baterias(d, res):
                                           "por eso no se resta compra de venta ni se da un resultado neto.", 48), fontsize=7.5, color=C["gris"], va="top")
     else:
         y -= 0.015
-        fig.text(0.675, y, textwrap.fill("La liquidación por mercado (I3) se añade cuando REE la publica, hacia el viernes.", 40), fontsize=8.5, color=C["gris"], va="top")
+        fig.text(0.675, y, textwrap.fill("La liquidación por mercado (I3) se añade cuando REE la publica, entre el jueves y el viernes.", 40), fontsize=8.5, color=C["gris"], va="top")
     d.guardar(fig)
     return True
 
@@ -458,9 +467,13 @@ def sec_historico(d, res):
     if h is None or len(h) < 6:
         return False
     h = h.sort_values("lunes").tail(60).reset_index(drop=True)
-    fig = d.diapositiva(f"La semana en perspectiva: las últimas {len(h)} semanas",
-                        "Cada punto es una semana, calculada siempre con el mismo método. El techo de arbitraje sigue al spread diario más que al precio medio; "
-                        "la captura solar cae cuando la FV crece y los mediodías se abaratan.",
+    cp = res.get("comparativa") or {}
+    lect = ("Cada punto es una semana, calculada siempre con el mismo método. El techo de arbitraje sigue al spread diario más que al precio medio; "
+            "la captura solar cae cuando la FV crece y los mediodías se abaratan.")
+    if cp.get("ytd") and cp.get("ytd_prev"):
+        lect += (f" Acumulado del año (4 h): {n(cp['ytd'] / 1000, 1)} k€/MW frente a {n(cp['ytd_prev'] / 1000, 1)} k€/MW en las mismas semanas "
+                 f"del año anterior ({n((cp['ytd'] / cp['ytd_prev'] - 1) * 100, 0, True)} %).")
+    fig = d.diapositiva(f"La semana en perspectiva: las últimas {len(h)} semanas", lect,
                         "Fuente: ESIOS (REE) y OMIE. Cálculo propio con datos públicos; las semanas anteriores al 1-oct-2025 tienen precio horario repetido en los cuatro cuartos.")
     x = np.arange(len(h))
     et = (h["etiqueta"].str[2:4] + "-" + h["etiqueta"].str[-3:]).tolist()
@@ -483,5 +496,56 @@ def sec_historico(d, res):
         ax.set_xticklabels(et[::paso], fontsize=7.5)
         if len(cols) > 1:
             ax.legend(frameon=False, fontsize=7.5, loc="upper left", ncol=3)
+    d.guardar(fig)
+    return True
+
+
+def sec_multimercado(d, res):
+    """Techo de arbitraje solo con el diario frente al techo usando también las subastas intradiarias,
+    más los spreads top-bottom (TB1/TB2/TB4) de la semana."""
+    mm, tb = res.get("multimercado"), res.get("tb") or {}
+    if not mm or not mm.get("por_dia"):
+        return False
+    dias = sorted(mm["por_dia"])
+    a = [mm["solo_diario"].get(x, np.nan) for x in dias]
+    b = [mm["por_dia"][x] for x in dias]
+    txt = (f"Con el mejor precio de cada cuarto de hora entre el diario y las tres subastas intradiarias (IDA1-3), la misma batería de 4 h habría podido captar "
+           f"{n(mm['media'], 0)} €/MW al día, un {n(mm['uplift'], 0)} % más que solo con el diario ({n(mm['media_diario'], 0)} €/MW). Es el margen que deja la "
+           f"reoptimización intradiaria: con previsión perfecta y sin límite de liquidez, así que es un techo, no un ingreso esperable.")
+    fig = d.diapositiva("Arbitraje: solo diario frente a diario + intradiarios", txt,
+                        "Fuente: OMIE vía ESIOS (precios del diario e IDA1-3, cuartohorarios). Cálculo propio: misma programación dinámica que el techo del diario, comprando al mínimo y "
+                        "vendiendo al máximo de los precios disponibles en cada cuarto. TB k = media de las k horas más caras menos media de las k más baratas de cada día.")
+    ax = d.eje(fig, caja=[0.07, 0.14, 0.56, 0.58])
+    x = np.arange(len(dias))
+    ax.bar(x - 0.2, a, 0.38, color=C["verde"], label="Solo diario")
+    ax.bar(x + 0.2, b, 0.38, color=C["coral"], label="Diario + IDA1-3")
+    for i, (u, v) in enumerate(zip(a, b)):
+        if not np.isnan(u):
+            ax.text(i - 0.2, u * 1.01, n(u, 0), ha="center", fontsize=8)
+        ax.text(i + 0.2, v * 1.01, n(v, 0), ha="center", fontsize=8, color=C["coral"])
+    ax.set_xticks(x)
+    ax.set_xticklabels([etiqueta_dia(k) for k in dias])
+    ax.set_ylabel("€/MW·día (batería 1 MW / 4 MWh)")
+    _leyenda(ax, 2)
+    fig.add_artist(Rectangle((0.67, 0.14), 0.285, 0.58, color=C["panel"], transform=fig.transFigure))
+    fig.text(0.685, 0.69, "Spreads de la semana", fontsize=11.5, fontweight="bold", color=C["verde"])
+    y = 0.645
+    ant = (res.get("comparativa") or {}).get("anterior") or {}
+    for k in (1, 2, 4):
+        fig.text(0.69, y, f"TB{k} (batería de {k} h)", fontsize=9.5, va="center")
+        fig.text(0.94, y, f"{n(tb.get(k), 0)} €/MWh", fontsize=10, fontweight="bold", va="center", ha="right", color=C["verde"])
+        y -= 0.05
+    if ant.get("tb4") == ant.get("tb4"):
+        fig.text(0.69, y, f"TB4 misma semana {ant.get('etiqueta', '')[:4]}", fontsize=9, va="center", color=C["gris"])
+        fig.text(0.94, y, f"{n(ant.get('tb4'), 0)} €/MWh", fontsize=9.5, va="center", ha="right", color=C["gris"])
+        y -= 0.05
+    y -= 0.02
+    fig.text(0.685, y, "Techo 4 h, media diaria", fontsize=11.5, fontweight="bold", color=C["verde"]); y -= 0.05
+    for lab, v, col in (("Solo diario", mm["media_diario"], C["verde"]), ("Diario + IDA1-3", mm["media"], C["coral"])):
+        fig.text(0.69, y, lab, fontsize=9.5, va="center")
+        fig.text(0.94, y, f"{n(v, 0)} €/MW·día", fontsize=10, fontweight="bold", va="center", ha="right", color=col)
+        y -= 0.05
+    fig.text(0.69, y, "Margen de los intradiarios", fontsize=9.5, va="center")
+    fig.text(0.94, y, f"{n(mm['uplift'], 1, True)} %", fontsize=10, fontweight="bold", va="center", ha="right", color=C["coral"])
     d.guardar(fig)
     return True
