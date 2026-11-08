@@ -30,7 +30,9 @@ import pandas as pd
 import yaml
 
 RAIZ = Path(__file__).resolve().parent.parent
-ALMACEN = RAIZ / "data" / "i3_diario_v2.csv.gz"
+# v3 (8-nov-2026): lector corregido (periodos por cabecera, precios alineados por fecha y hora,
+# diario/intradiarios/continuo/tiempo real valorados). El v2 queda como copia antigua, sin uso.
+ALMACEN = RAIZ / "data" / "i3_diario_v3.csv.gz"
 MAPA = RAIZ / "src" / "i3_mapa.yml"
 COLS = ["fecha", "mercado", "tecnologia", "magnitud", "fase", "tipologia", "sentido", "valor"]
 ARCHIVO_I3 = 32
@@ -277,8 +279,8 @@ def precios_dia(cli, dia):
     fin = pd.Timestamp(dia + timedelta(days=1)).tz_localize("Europe/Madrid")
     for k, i in (("spot", 600), ("ida1", 612), ("ida2", 613), ("ida3", 614), ("continuo", 1727)):
         try:
-            _, s = cli.serie(i, ini, fin, [3, 8741] if i == 600 else None)
-            out[k] = s.values if len(s) else None
+            _, s = cli.serie(i, ini, fin, [3, 8741])
+            out[k] = s if len(s) else None       # Serie con fecha: i3_real la alinea por periodo
         except Exception:
             out[k] = None
     return out
@@ -301,12 +303,19 @@ def actualizar(desde, hasta, cli=None, maxdias=None):
                 hojas = hojas_de_zip(descargar_dia(cli, dia))
                 from .i3_real import procesar as _proc
 
-                df, sc = _proc(hojas, pd.Timestamp(dia), precios_dia(cli, dia))
+                pr = precios_dia(cli, dia)
+                if pr.get("spot") is None:                  # sin precio no se valora: se reintenta otro día
+                    raise RuntimeError("precio spot no disponible")
+                df, sc = _proc(hojas, pd.Timestamp(dia), pr)
                 if len(df):
                     nuevos.append(df)
                 for k, v in sc.items():
                     sc_total[k] = sc_total.get(k, 0) + v
                 hechos += 1
+                if hechos % 60 == 0 and nuevos:                 # guardado parcial: una caída no pierde todo
+                    alm = pd.concat([alm] + nuevos, ignore_index=True)
+                    guardar_almacen(alm)
+                    nuevos = []
             except Exception as e:                              # día aún no publicado, etc.
                 fallos.append((dia.isoformat(), str(e)[:80]))
             if maxdias and hechos >= maxdias:
