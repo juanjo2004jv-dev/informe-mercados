@@ -920,7 +920,7 @@
  },
  "546": {
   "nombre": "Generación T.Real hidráulica",
-  "n": 9974,
+  "n": 507,
   "magnitud": [
    {
     "name": "Potencia",
@@ -986,7 +986,7 @@
  },
  "549": {
   "nombre": "Generación T.Real nuclear",
-  "n": 9974,
+  "n": 507,
   "magnitud": [
    {
     "name": "Potencia",
@@ -1008,7 +1008,7 @@
  },
  "550": {
   "nombre": "Generación T.Real C.Combinado",
-  "n": 9974,
+  "n": 507,
   "magnitud": [
    {
     "name": "Potencia",
@@ -1250,7 +1250,7 @@
  },
  "2344": {
   "nombre": "Generación T.Real Turbina de vapor",
-  "n": 9974,
+  "n": 507,
   "magnitud": [
    {
     "name": "Potencia",
