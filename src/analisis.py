@@ -39,7 +39,7 @@ def limites_semana(lunes):
 
 
 # ---------------------------------------------------------------- batería
-def dp_bateria(p, horas=4.0, rend=0.85, ciclado=4.0, ciclos_max=1.5, paso=0.25):
+def dp_bateria(p, horas=4.0, rend=0.85, ciclado=4.0, ciclos_max=1.5, paso=0.25, p_venta=None):
     """Programación dinámica exacta para 1 MW / `horas` MWh en un día.
 
     Previsión perfecta de precios => es un TECHO teórico, no un ingreso real.
@@ -48,12 +48,14 @@ def dp_bateria(p, horas=4.0, rend=0.85, ciclado=4.0, ciclos_max=1.5, paso=0.25):
     Devuelve (€/MW, acciones) con acciones: 0 = reposo, 1 = carga, 2 = descarga.
     """
     p = np.asarray(p, float)
+    pv = p if p_venta is None else np.asarray(p_venta, float)   # precio de venta (por defecto, el mismo)
     n = len(p)
     S = int(round(horas / paso)) + 1            # niveles de carga
     C = int(round(ciclos_max * horas / paso))   # pasos de descarga permitidos
     eta = np.sqrt(rend)
-    ok = ~np.isnan(p)
+    ok = ~np.isnan(p) & ~np.isnan(pv)
     pp = np.where(ok, p, 0.0)
+    ppv = np.where(ok, pv, 0.0)
     NEG = -np.inf
     V = np.full((n + 1, S, C + 1), NEG)
     V[n, 0, :] = 0.0
@@ -69,7 +71,7 @@ def dp_bateria(p, horas=4.0, rend=0.85, ciclado=4.0, ciclos_max=1.5, paso=0.25):
             best = np.where(m, carga, best)
             d = np.where(m, 1, d)
             desc = np.full((S, C + 1), NEG)
-            desc[1:, :-1] = (pp[t] - ciclado) * paso * eta + nxt[:-1, 1:]
+            desc[1:, :-1] = (ppv[t] - ciclado) * paso * eta + nxt[:-1, 1:]
             m = desc > best
             best = np.where(m, desc, best)
             d = np.where(m, 2, d)
@@ -101,6 +103,43 @@ def bess_por_dia(precio, bat):
             bat.get("ciclos_max_dia", 1.5),
         )
         out[d] = (v, g.index, acc)
+    return out
+
+
+def bess_multimercado(spot, otros, bat):
+    """Techo de arbitraje con el MEJOR precio disponible en cada cuarto de hora entre el diario y
+    las subastas intradiarias (IDA1-3): compra al mínimo y vende al máximo. Previsión perfecta y
+    sin límite de liquidez: es la cota superior del valor de reoptimizar la batería en intradiario.
+    Devuelve {fecha: €/MW} solo para días con >= 90 % de datos del diario."""
+    df = pd.concat([spot] + [o for o in otros if o is not None], axis=1)
+    compra, venta = df.min(axis=1, skipna=True), df.max(axis=1, skipna=True)
+    dias = pd.Series(spot.index.tz_convert(TZ).date, index=spot.index)
+    out = {}
+    for d, g in spot.groupby(dias):
+        if g.notna().mean() < 0.9:
+            continue
+        v, _ = dp_bateria(compra.loc[g.index].values, bat["horas"], bat["rendimiento_ida_vuelta"], bat["coste_ciclado_eur_mwh"],
+                          bat.get("ciclos_max_dia", 1.5), p_venta=venta.loc[g.index].values)
+        out[d] = v
+    return out
+
+
+def spreads_tb(precio, horas=(1, 2, 4)):
+    """Spread «top-bottom» de cada día: media de los k h más caras menos media de las k h más baratas
+    (en cuartos de hora: 4k cuartos). Métrica estándar del sector para dimensionar baterías de k horas.
+    Devuelve {k: media de la semana} con días de >= 90 % de datos."""
+    dias = pd.Series(precio.index.tz_convert(TZ).date, index=precio.index)
+    out = {}
+    for k in horas:
+        vals = []
+        for _, g in precio.groupby(dias):
+            if g.notna().mean() < 0.9:
+                continue
+            v = np.sort(g.dropna().values)
+            q = 4 * k
+            if len(v) >= 2 * q:
+                vals.append(v[-q:].mean() - v[:q].mean())
+        out[k] = float(np.mean(vals)) if vals else np.nan
     return out
 
 
@@ -299,9 +338,32 @@ def analizar(datos, cfg, lunes):
                     }
                 )
 
-    # mix de generación y baterías del sistema (tiempo real)
-    res["mix"] = mix_semana(datos, cfg, idx)
-    res["baterias"] = baterias_semana(datos, idx, spot, res)
+    # mix de generación y baterías del sistema (tiempo real); si algo falla, la sección se omite
+    for clave, fn in (("mix", lambda: mix_semana(datos, cfg, idx)), ("baterias", lambda: baterias_semana(datos, idx, spot, res))):
+        try:
+            res[clave] = fn()
+        except Exception as e:
+            print(f"AVISO: {clave} omitido ({type(e).__name__}: {str(e)[:100]})")
+            res[clave] = None
+
+    # spreads top-bottom y techo multimercado (diario + subastas intradiarias)
+    try:
+        res["tb"] = spreads_tb(spot)
+        otros = [res["series"].get(k) for k in ("ida1", "ida2", "ida3")]
+        if any(o is not None and o.notna().mean() > 0.3 for o in otros):
+            mm = bess_multimercado(spot, otros, bat)
+            if mm:
+                solo = {d: v for d, v in ingresos_dia.items() if d in mm and not np.isnan(v)}
+                res["multimercado"] = {
+                    "por_dia": mm, "solo_diario": solo,
+                    "media": float(np.mean(list(mm.values()))),
+                    "media_diario": float(np.mean(list(solo.values()))) if solo else np.nan,
+                }
+                md = res["multimercado"]
+                md["uplift"] = (md["media"] / md["media_diario"] - 1) * 100 if md["media_diario"] else np.nan
+    except Exception as e:
+        print(f"AVISO: spreads/multimercado omitidos ({type(e).__name__}: {str(e)[:100]})")
+        res.setdefault("tb", {})
 
     # cobertura de todas las series
     res["cobertura"]["spot"] = float(spot.notna().mean())
