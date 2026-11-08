@@ -8,6 +8,39 @@ TZ = "Europe/Madrid"
 
 
 # ---------------------------------------------------------------- tiempo
+DIAS_C = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
+
+
+def huecos_txt(falta, maximo=3):
+    """Tramos seguidos sin dato (serie booleana sobre la rejilla UTC; True = falta), en hora local:
+    «el mié 4 de 15:15 a 21:00». Sirve para avisar de los huecos que deja ESIOS en el tiempo real."""
+    if falta is None or not len(falta) or not falta.any():
+        return ""
+    f = falta.values.astype(bool)
+    idx = falta.index
+    tramos, i = [], 0
+    while i < len(f):
+        if f[i]:
+            j = i
+            while j + 1 < len(f) and f[j + 1]:
+                j += 1
+            tramos.append((idx[i], idx[j] + pd.Timedelta(minutes=15)))
+            i = j + 1
+        else:
+            i += 1
+    out = []
+    for a, b in tramos[:maximo]:
+        a, b = a.tz_convert(TZ), b.tz_convert(TZ)
+        if a.date() == (b - pd.Timedelta(minutes=1)).date():
+            out.append(f"el {DIAS_C[a.weekday()]} {a.day} de {a:%H:%M} a {b:%H:%M}")
+        else:
+            out.append(f"del {DIAS_C[a.weekday()]} {a.day} {a:%H:%M} al {DIAS_C[b.weekday()]} {b.day} {b:%H:%M}")
+    txt = out[0] if len(out) == 1 else ", ".join(out[:-1]) + " y " + out[-1]
+    if len(tramos) > maximo:
+        txt += f" (y {len(tramos) - maximo} tramos más)"
+    return txt
+
+
 def rejilla(inicio, fin):
     """Cuartos de hora [inicio, fin) en UTC (respeta días de 23/25 h)."""
     return pd.date_range(inicio.tz_convert("UTC"), fin.tz_convert("UTC"), freq="15min", inclusive="left")
@@ -295,6 +328,8 @@ def analizar(datos, cfg, lunes):
     if dr.notna().mean() > 0.5:
         pico = dr.idxmax()
         d = {"real": dr, "pico": float(dr.max()), "pico_t": pico.tz_convert(TZ), "media": float(dr.mean()), "valle": float(dr.min())}
+        if dr.isna().any():                                       # huecos de ESIOS en el tiempo real (p. ej. 4-nov-2026, 15-21 h)
+            d["hueco_txt"] = huecos_txt(dr.isna())
         if dp.notna().mean() > 0.5:
             m = dr.notna() & dp.notna() & (dr > 0)
             d["prevista"] = dp
@@ -410,6 +445,10 @@ def mix_semana(datos, cfg, idx):
         "renovable_min": float((ren / total).min() * 100) if total.notna().any() else np.nan,
         "horas_ren_demanda": float(((ren >= dem) & dem.notna()).sum() / 4) if dem.notna().any() else np.nan,
     }
+    falta = total.isna()
+    if falta.any():                                               # ESIOS deja a veces horas sin tiempo real
+        out["hueco_h"] = float(falta.sum() / 4)
+        out["hueco_txt"] = huecos_txt(falta)
     if "intercambios" in bal and bal["intercambios"].notna().mean() > 0.5:
         x = bal["intercambios"]
         out["saldo_intercambios_gwh"] = float(x.sum() / 4 / 1000)          # negativo = exportación neta
