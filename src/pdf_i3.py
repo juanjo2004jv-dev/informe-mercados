@@ -42,6 +42,9 @@ def precio_capturado(d, i3, rango):
     e = i3.groupby(["tecnologia", "mercado", "magnitud"])["valor"].sum().unstack("magnitud").fillna(0)
     pbf = i3[(i3["mercado"] == "PBF") & (i3["magnitud"] == "energia")].groupby("tecnologia")["valor"].sum().abs().sort_values(ascending=False)
     tecs = list(pbf.index[:13])
+    for t_ in ("Almacenamiento generación", "Almacenamiento consumo"):   # informe con foco BESS: siempre visibles
+        if t_ in pbf.index and t_ not in tecs:
+            tecs.append(t_)
     bruto = i3[i3["magnitud"] == "energia"].groupby(["tecnologia", "mercado"])["valor"].apply(lambda x: x.abs().sum())
     fig = d.diapositiva("Precio capturado por tecnología y mercado",
                         "Lo que cada tecnología cobra de media en cada mercado. Sale del I3, que llega a los cuatro días: hace falta la energía y el ingreso "
@@ -90,7 +93,7 @@ def ingreso_tabla(d, i3, rango):
                         "Lo que cada tecnología ha cobrado, o pagado, en cada mercado a lo largo de todo el periodo. La compra es negativa, así que un importe "
                         "negativo es un coste; una celda vacía es un concepto que REE no valora, no un cero.",
                         FUENTE_I3.format(rango=rango) + " El ingreso de mercados distintos sí se suma (son euros); la energía no.")
-    _tabla(d, fig, ["Mercado"] + [x for _, x in TEC_CLAVE] + ["Total"], filas, [0.06, 0.26, 0.40, 0.54, 0.68, 0.82], ["left", "right", "right", "right", "right", "right"],
+    _tabla(d, fig, ["Mercado"] + [x for _, x in TEC_CLAVE] + ["Todas las tec."], filas, [0.06, 0.26, 0.40, 0.54, 0.68, 0.82], ["left", "right", "right", "right", "right", "right"],
            y0=0.715, alto=0.052, total_ultima=True, fs=10)
     d.guardar(fig)
     return tot_all
@@ -382,7 +385,7 @@ def cot_sot_dia(d, i3, dias, rango):
 
 
 # ------------------------------------------------------------------ operación reforzada
-def operacion_reforzada(d, hist, rango_hist, corte="2025-04-28"):
+def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27"):  # víspera del apagón del 28-abr-2025
     """hist: tabla I3 completa desde 2025-01-01. Devuelve diccionario con cifras clave."""
     h = hist[(hist["mercado"] == "Restricciones MD") & (hist["fase"] == "MD · Fase I") & (hist["sentido"] == "Subir") & (hist["magnitud"] == "ingreso") & (hist["tipologia"].isin(["COT", "SOT"]))]
     if len(h) == 0:
