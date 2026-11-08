@@ -124,6 +124,17 @@ def redactar(res):
             e = cs["gen_eolica"]
             t["p_solar"] += f" La eólica capturó {n(e['precio'])} €/MWh ({n(e['ratio'], 0)} %)."
 
+    # --- baterías del sistema y renovables
+    b = res.get("baterias")
+    if b and b.get("mwh_entrega", 0) > 0 and not np.isnan(b.get("spread", np.nan)):
+        t["p_bat"] = (
+            f"Las baterías del sistema entregaron {n(b['mwh_entrega'], 0)} MWh con un spread capturado de {n(b['spread'], 0)} €/MWh "
+            f"(cargaron a {n(b['precio_carga'], 0)} y descargaron a {n(b['precio_descarga'], 0)} €/MWh)."
+        )
+    m = res.get("mix")
+    if m and not np.isnan(m.get("renovable_pct", np.nan)):
+        t["p_mix"] = f"Las renovables cubrieron el {n(m['renovable_pct'], 1)} % de la generación peninsular."
+
     # --- demanda
     d = res["demanda"]
     if d:
