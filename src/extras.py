@@ -359,6 +359,9 @@ def sec_mix(d, res):
     if "saldo_intercambios_gwh" in m:
         s = m["saldo_intercambios_gwh"]
         txt += f" Saldo con el exterior: {'exportación' if s < 0 else 'importación'} neta de {n(abs(s), 0)} GWh ({n(m['horas_exportando'], 0)} h exportando)."
+    if m.get("hueco_txt"):
+        txt += (f" ESIOS no publicó la generación en tiempo real {m['hueco_txt']} ({n(m['hueco_h'], 1)} h): "
+                "las energías de la semana no incluyen ese tramo.")
     fig = d.diapositiva(f"Mix de generación: renovables al {n(m['renovable_pct'], 0)} %", txt,
                         "Fuente: ESIOS (REE), generación peninsular en tiempo real (5 min, promediada a 15 min). Hidráulica convencional = hidráulica neta − turbinación − consumo de bombeo; "
                         "la turbinación de bombeo cuenta como no renovable. Cuota sobre la generación, sin intercambios ni baterías.")
