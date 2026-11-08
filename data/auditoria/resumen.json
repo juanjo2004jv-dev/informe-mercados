@@ -1,7 +1,7 @@
 {
  "600": {
   "nombre": "Precio mercado SPOT Diario",
-  "n": 12126,
+  "n": 12702,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -43,7 +43,7 @@
  },
  "612": {
   "nombre": "Precio mercado SPOT Intradiario Sesión 1",
-  "n": 3658,
+  "n": 3850,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -69,7 +69,7 @@
  },
  "613": {
   "nombre": "Precio mercado SPOT Intradiario Sesión 2",
-  "n": 4042,
+  "n": 4234,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -95,7 +95,7 @@
  },
  "614": {
   "nombre": "Precio mercado SPOT Intradiario Sesión 3",
-  "n": 2016,
+  "n": 2112,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -121,7 +121,7 @@
  },
  "1727": {
   "nombre": "Precio de referencia en Mercado Intradiario Continuo",
-  "n": 483,
+  "n": 507,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -143,7 +143,7 @@
  },
  "602": {
   "nombre": "Energía asignada en Mercado SPOT Diario España",
-  "n": 2000,
+  "n": 2095,
   "magnitud": [
    {
     "name": "Energía",
@@ -165,7 +165,7 @@
  },
  "605": {
   "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 1",
-  "n": 1829,
+  "n": 1925,
   "magnitud": [
    {
     "name": "Energía",
@@ -187,7 +187,7 @@
  },
  "606": {
   "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 2",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Energía",
@@ -209,7 +209,7 @@
  },
  "607": {
   "nombre": "Energía asignada en Mercado SPOT Intradiario sesión 3",
-  "n": 1008,
+  "n": 1056,
   "magnitud": [
    {
     "name": "Energía",
@@ -231,7 +231,7 @@
  },
  "1442": {
   "nombre": "Energía asignada en Mercado Intradiario Continuo",
-  "n": 482,
+  "n": 506,
   "magnitud": [
    {
     "name": "Energía",
@@ -253,7 +253,7 @@
  },
  "682": {
   "nombre": "Precio de energía de regulación secundaria a subir",
-  "n": 2019,
+  "n": 2115,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -275,7 +275,7 @@
  },
  "683": {
   "nombre": "Precio de energía de regulación secundaria a bajar",
-  "n": 2019,
+  "n": 2115,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -297,7 +297,7 @@
  },
  "680": {
   "nombre": "Energía activada  de regulación secundaria a subir en el sepe",
-  "n": 2019,
+  "n": 2115,
   "magnitud": [
    {
     "name": "Energía",
@@ -319,7 +319,7 @@
  },
  "681": {
   "nombre": "Energía activada  de regulación secundaria a bajar en el sepe",
-  "n": 2019,
+  "n": 2115,
   "magnitud": [
    {
     "name": "Energía",
@@ -341,7 +341,7 @@
  },
  "2197": {
   "nombre": "Precio energías de balance mFRR de activación programada",
-  "n": 1995,
+  "n": 2091,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -380,7 +380,7 @@
  },
  "10388": {
   "nombre": "Precio medio ponderado reserva de regulación secundaria a subir",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -402,7 +402,7 @@
  },
  "10463": {
   "nombre": "Precio medio ponderado reserva de regulación secundaria a bajar",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Precio €/MW",
@@ -424,7 +424,7 @@
  },
  "630": {
   "nombre": "Requerimientos reserva de regulación secundaria a subir",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Potencia",
@@ -446,7 +446,7 @@
  },
  "631": {
   "nombre": "Requerimientos reserva de regulación secundaria a bajar",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Potencia",
@@ -556,7 +556,7 @@
  },
  "674": {
   "nombre": "Asignación programada a bajar de energías mFRR SEE (AP)",
-  "n": 1927,
+  "n": 2023,
   "magnitud": [
    {
     "name": "Energía",
@@ -578,7 +578,7 @@
  },
  "675": {
   "nombre": "Asignación programada a subir de energías mFRR SEE (AP)",
-  "n": 1885,
+  "n": 1977,
   "magnitud": [
    {
     "name": "Energía",
@@ -634,7 +634,7 @@
  },
  "10394": {
   "nombre": "Asignación a bajar de energías mFRR SEE",
-  "n": 1928,
+  "n": 2024,
   "magnitud": [
    {
     "name": "Energía",
@@ -656,7 +656,7 @@
  },
  "10395": {
   "nombre": "Asignación a subir de energías mFRR SEE",
-  "n": 1887,
+  "n": 1979,
   "magnitud": [
    {
     "name": "Energía",
@@ -700,7 +700,7 @@
  },
  "10397": {
   "nombre": "Asignación directa a bajar de energías mFRR SEE (AD)",
-  "n": 29,
+  "n": 35,
   "magnitud": [
    {
     "name": "Energía",
@@ -722,7 +722,7 @@
  },
  "10398": {
   "nombre": "Precio medio ponderado regulación terciaria a subir de activación programada (AP)",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -744,7 +744,7 @@
  },
  "10399": {
   "nombre": "Precio medio ponderado regulación terciaria a bajar de activación programada (AP)",
-  "n": 2021,
+  "n": 2117,
   "magnitud": [
    {
     "name": "Precio €/MWh",
@@ -766,7 +766,7 @@
  },
  "1293": {
   "nombre": "Demanda real Peninsular",
-  "n": 6061,
+  "n": 6349,
   "magnitud": [
    {
     "name": "Potencia",
@@ -788,7 +788,7 @@
  },
  "544": {
   "nombre": "Demanda prevista Peninsular",
-  "n": 6061,
+  "n": 6349,
   "magnitud": [
    {
     "name": "Potencia",
@@ -810,7 +810,7 @@
  },
  "545": {
   "nombre": "Demanda programada Peninsular",
-  "n": 6061,
+  "n": 6349,
   "magnitud": [
    {
     "name": "Potencia",
@@ -832,7 +832,7 @@
  },
  "551": {
   "nombre": "Generación T.Real eólica",
-  "n": 6061,
+  "n": 6349,
   "magnitud": [
    {
     "name": "Potencia",
@@ -854,7 +854,7 @@
  },
  "1295": {
   "nombre": "Generación T.Real Solar fotovoltaica",
-  "n": 6061,
+  "n": 6349,
   "magnitud": [
    {
     "name": "Potencia",
