@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # para relanzar el reloj si su cadena se cortara
 
 concurrency:
   group: informe
@@ -61,7 +62,7 @@ jobs:
 
       - name: Revisar semanas con precios del I3 pendientes
         # si REE publicó algún día del I3 sin precios, la semana se rehace sola cuando los complete
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ github.event_name == 'schedule' || github.actor == 'github-actions[bot]' }}   # programada o lanzada por el reloj
         continue-on-error: true
         env:
           ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
@@ -97,3 +98,14 @@ jobs:
               echo "Reintento del push ($i)…"; sleep 10
             done
           fi
+
+      - name: Mantener vivo el reloj
+        # el reloj (reloj.yml) es quien lanza este informe a su hora; si no hay ninguno en marcha, se arranca
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh run list -R "${{ github.repository }}" -w reloj.yml -L 20 --json status -q '[.[] | select(.status != "completed")] | length')
+          echo "Relojes en marcha: $n"
+          if [ "$n" = "0" ]; then gh workflow run reloj.yml -R "${{ github.repository }}" && echo "Reloj relanzado"; fi
