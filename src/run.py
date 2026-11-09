@@ -78,15 +78,31 @@ def _con_respaldo(cli, v, s, ini, fin):
             e = (coste / banda.replace(0, float("nan"))).dropna()
             e = e[(e >= -1) & (e <= v.get("max_valido", 1e9))]
             if len(e):
+                err_txt = _error_estimacion(s, e)
                 hueco = A.alinear(s, rej).isna() if len(s) else pd.Series(True, index=rej)
                 dias_est = sorted(set(e.index[e.index.isin(rej[hueco])].tz_convert(TZ).date))
                 s = e if not len(s) else s.combine_first(e)
                 if dias_est:
                     txt += (f"; {'los días' if len(dias_est) > 1 else 'el día'} {_dias_txt(dias_est)} se {'ESTIMAN' if len(dias_est) > 1 else 'ESTIMA'} como coste de la reserva (ID {est['coste']}) ÷ "
-                            f"banda requerida (ID {est['banda']}), con un error medio inferior al 1 % frente al dato oficial")
+                            f"banda requerida (ID {est['banda']}), {err_txt}")
         except Exception as ex:
             txt += f"; no se pudo estimar ({str(ex)[:60]})"
     return s, txt + "."
+
+
+def _error_estimacion(oficial, estimada):
+    """Error de la estimación frente al dato oficial en los días de la MISMA descarga con los dos."""
+    if oficial is None or not len(oficial):
+        return "sin días con dato oficial esta semana para validarla (última validación: error medio < 1 %, 5-8 nov 2026)"
+    c = pd.concat({"o": oficial, "e": estimada}, axis=1).dropna()
+    c = c[c["o"].abs() > 0.01]
+    if not len(c):
+        return "sin días con dato oficial esta semana para validarla (última validación: error medio < 1 %, 5-8 nov 2026)"
+    dia = c.index.tz_convert(TZ).date
+    g = c.groupby(dia).mean()
+    err = ((g["e"] - g["o"]).abs() / g["o"].abs() * 100)
+    return (f"con un error frente al dato oficial, medido esta semana en {_dias_txt(list(g.index))} (medias diarias), "
+            f"del {err.mean():.1f} % de media y {err.max():.1f} % de máximo").replace(".", ",")
 
 
 def descargar(cfg, lunes):
@@ -130,7 +146,29 @@ def descargar(cfg, lunes):
                 datos[pref + k] = s
             except Exception as e:
                 meta[pref + k] = {"nombre": v["nombre"], "id": v["id"], "api": "—", "aviso": f"no se pudo descargar ({str(e)[:80]})"}
+    # descripción oficial del indicador de demanda real (para el pie de la página de demanda)
+    try:
+        import re
+        ind = cli._get(f"/indicators/{cfg['series']['demanda_real']['id']}").get("indicator", {})
+        desc = re.sub(r"<[^>]+>", " ", ind.get("description") or "")
+        desc = re.sub(r"\s+", " ", desc).strip()
+        if "demanda_real" in meta:
+            meta["demanda_real"]["descripcion"] = desc or None
+            meta["demanda_real"]["nombre_oficial"] = ind.get("name")
+    except Exception as e:
+        print(f"AVISO: descripción del indicador de demanda no disponible ({str(e)[:80]})")
+    # huecos del tiempo real de ESIOS: se completan con REE en tiempo real (demanda.ree.es), validado
+    from . import fuentes as F
+
+    info = F.rellenar_tiempo_real(datos, meta, ini, fin)
+    INFO_TR.clear()
+    INFO_TR.update(info)
+    if info.get("error"):
+        print(f"AVISO: REE en tiempo real no disponible ({info['error']}); los huecos de ESIOS quedan sin rellenar.")
     return datos, meta
+
+
+INFO_TR = {}
 
 
 def cargar_i3(lunes, res, demo):
@@ -316,6 +354,11 @@ def main():
         datos, meta = descargar(cfg, lunes)
 
     res = A.analizar(datos, cfg, lunes)
+    from .narrativa import frase_ren_demanda
+
+    res["ree_tr_ok"] = bool(INFO_TR.get("ok"))
+    if res.get("mix"):
+        res["mix"]["txt_ren_dem"] = frase_ren_demanda(res["mix"])
     cob = res["cobertura"]["spot"]
     if cob < cfg["umbral_cobertura_spot"] and not (a.force or a.ensayo):
         sys.exit(f"Cobertura del precio spot insuficiente ({cob:.1%}). Se reintentará en la siguiente ejecución.")
@@ -329,6 +372,16 @@ def main():
     from .i3 import huecos_precios
 
     res["i3_huecos"] = huecos_precios(i3) if (i3 is not None and not res["i3_anterior"]) else []
+    if not a.demo:
+        from . import validacion as V
+
+        try:
+            V.ejecutar(res, datos, meta, cfg, lunes, INFO_TR, i3=i3)
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            print(f"AVISO: control de calidad omitido ({type(e).__name__}: {str(e)[:100]})")
     from . import historico as Hs
 
     try:
@@ -388,6 +441,10 @@ def _resumen_ejecucion(res, meta, paginas, pdf, ensayo):
         lin.append(f"- I3: {m}")
     for e in res.get("_errores_pdf") or []:
         lin.append(f"- ⚠ Página omitida: {e}")
+    qc = (res.get("qc") or {}).get("controles") or []
+    if qc:
+        lin.append(f"- Control de calidad: {sum(c['ok'] for c in qc)} ✔ / {sum(not c['ok'] for c in qc)} ⚠")
+        lin += [f"  - ⚠ {c['grupo']} · {c['nombre']}: {c['valor_txt']} (ref. {c['ref_txt']}; tol. {c['tol_txt']}) {c.get('nota', '')}" for c in qc if not c["ok"]]
     txt = "\n".join(lin)
     print(txt)
     ruta = os.environ.get("GITHUB_STEP_SUMMARY")
