@@ -287,7 +287,9 @@ def perfil(d, res):
 def bateria(d, res, cfg, t):
     bat = cfg["bateria"]
     fig = d.diapositiva(t["h_bess"], t["p_bess"],
-                        "Fuente: OMIE vía ESIOS. Cálculo propio por programación dinámica exacta con previsión perfecta: es un techo, no un ingreso garantizado.")
+                        "Fuente: OMIE vía ESIOS. Modelo: programación dinámica sobre el estado de carga con previsión perfecta; compra = venta = precio del diario de cada cuarto. "
+                        "Un modelo independiente con las mismas hipótesis reproduce estas cifras con un error de ±1 %; las diferencias vienen de cómo se reparte la eficiencia y el coste de ciclado. "
+                        "Es un techo, no un ingreso garantizado.")
     ax = d.eje(fig, caja=[0.07, 0.12, 0.56, 0.62])
     vals = [res["bess_por_dia"].get(x, np.nan) for x in res["dias"]]
     barras = ax.bar([etiqueta_dia(x) for x in res["dias"]], vals, color=C["verde"], width=0.62)
@@ -298,11 +300,13 @@ def bateria(d, res, cfg, t):
     ax.set_ylabel("€/MW·día")
     fig.add_artist(Rectangle((0.67, 0.12), 0.285, 0.62, color=C["panel"], transform=fig.transFigure))
     fig.text(0.685, 0.715, "Supuestos del cálculo", fontsize=12, fontweight="bold", color=C["verde"])
-    sup = (f"Batería de 1 MW y {int(bat['horas'])} MWh\nRendimiento ida y vuelta: {int(bat['rendimiento_ida_vuelta'] * 100)} %\n"
-           f"Coste de ciclado: {n(bat['coste_ciclado_eur_mwh'], 0)} €/MWh\nTope: {n(bat.get('ciclos_max_dia', 1.5), 1)} ciclos al día\n"
-           "Solo mercado diario (15 min)\nEmpieza y acaba cada día vacía\n\n"
-           + textwrap.fill("No incluye aFRR, mFRR ni intradiarios, que añaden ingreso real pero dependen de la participación y de la potencia contratada.", 40))
-    fig.text(0.685, 0.68, sup, fontsize=9.5, va="top", linespacing=1.55)
+    sup = (f"1 MW (lado batería) y {int(bat['horas'])} MWh útiles\nRendimiento ida y vuelta {int(bat['rendimiento_ida_vuelta'] * 100)} %: √η al cargar\n"
+           f"  y √η al descargar (al cargar toma ≈ {n(1 / bat['rendimiento_ida_vuelta'] ** 0.5, 2)} MW de red)\n"
+           f"Ciclado {n(bat['coste_ciclado_eur_mwh'], 0)} €/MWh sobre la energía descargada\nTope {n(bat.get('ciclos_max_dia', 1.5), 1)} ciclos/día = "
+           f"{n(bat.get('ciclos_max_dia', 1.5) * bat['horas'], 0)} MWh descargados\n"
+           "Solo diario (15 min), compra = venta\nEmpieza y acaba cada día vacía\nEstado de carga en pasos de 0,25 MWh\n\n"
+           + textwrap.fill("No incluye aFRR, mFRR ni intradiarios, que añaden ingreso real pero dependen de la participación y de la potencia contratada.", 44))
+    fig.text(0.685, 0.68, sup, fontsize=8.6, va="top", linespacing=1.45)
     fig.text(0.685, 0.20, f"Semana: {n(res['bess_semana'], 0)} €/MW\nMedia anterior: {n(res['bess_prev'], 0)} €/MW·día",
              fontsize=10.5, fontweight="bold", color=C["coral"], linespacing=1.5)
     d.guardar(fig)
@@ -328,8 +332,18 @@ def demanda(d, res, t):
     dem = res["demanda"]
     if not dem:
         return
-    fig = d.diapositiva(t["h_dem"], "Demanda real frente a la prevista y la programada. " + t["p_dem"],
-                        "Fuente: ESIOS (REE), demanda real, prevista y programada.")
+    m1293 = (res.get("_meta") or {}).get("demanda_real") or {}
+    desc = m1293.get("descripcion")
+    bal = ((res.get("qc") or {}).get("redata") or {}).get("balance") or {}
+    lect = "Demanda real frente a la prevista y la programada. " + t["p_dem"]
+    if bal.get("Demanda en b.c."):
+        lect += (f" Contraste: la demanda real (ID 1293) suma {n(dem['real'].sum() / 4 / 1000, 0)} GWh y la demanda en barras de central de REData, "
+                 f"{n(bal['Demanda en b.c.'], 0)} GWh: son magnitudes distintas.")
+    fig = d.diapositiva(t["h_dem"], lect,
+                        "Fuente: ESIOS (REE), demanda real (1293), prevista (544) y programada (545); huecos de la 1293 completados con demanda.ree.es. "
+                        + (f"Descripción oficial del 1293 (API de ESIOS): «{textwrap.shorten(desc, 260, placeholder='…')}». " if desc else
+                           f"La API de ESIOS no devolvió descripción del 1293 (nombre oficial: «{m1293.get('nombre_oficial') or m1293.get('api') or 'Demanda real Peninsular'}»); no se supone qué incluye. ")
+                        + "Error medio de la previsión = media de |prevista (544) − real (1293)| / real, cuarto a cuarto, solo donde hay dato en las dos (MAPE).")
     ax = d.eje(fig)
     ax.plot(range(len(dem["real"])), dem["real"].values, color=C["verde"], lw=2.2, label="Real")
     if "prevista" in dem:
@@ -349,7 +363,8 @@ def captura(d, res, cfg, t):
     if not cs:
         return
     fig = d.diapositiva(t.get("h_solar", "Precio capturado por tecnología"), t.get("p_solar", ""),
-                        "Fuente: ESIOS (REE). Precio capturado = Σ(precio × generación) / Σ generación, con generación en tiempo real y precio diario. Aproximación, no liquidación.")
+                        "Fuente: ESIOS (REE) y demanda.ree.es. Precio capturado = Σ(precio × generación) / Σ generación, con generación en tiempo real y precio diario. Tiempo real de REE "
+                        "(telemedida y estimación, cada 5 min); el balance oficial (REData) puede diferir, sobre todo en FV: se usa el tiempo real porque es la única serie cuartohoraria.")
     ax = d.eje(fig, caja=[0.07, 0.12, 0.45, 0.62])
     nombres = {"gen_solar_fv": "Solar FV", "gen_eolica": "Eólica"}
     ks = list(cs)
@@ -358,7 +373,9 @@ def captura(d, res, cfg, t):
     cols = [C["gris"]] + [C["coral"] if k == "gen_solar_fv" else C["azul"] for k in ks]
     b = ax.bar(x, vals, color=cols, width=0.55)
     ax.set_xticks(x)
-    ax.set_xticklabels(["Precio medio"] + [nombres[k] for k in ks])
+    from .validacion import marca
+
+    ax.set_xticklabels(["Precio medio"] + [nombres[k] + marca(res, "captura") for k in ks])
     for r, v in zip(b, vals):
         ax.text(r.get_x() + r.get_width() / 2, v + max(vals) * 0.02, n(v), ha="center", fontweight="bold")
     ax.set_ylabel("€/MWh")
@@ -448,8 +465,8 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
         "La energía de mercados distintos no se puede sumar: lo vendido en el diario y recomprado en restricciones aparecería dos veces. El ingreso sí se suma, porque son euros.",
         "Las restricciones salen del I3, que agrega por tecnología: aquí no hay unidad de programación ni empresa. El detalle activo a activo está en el I90, con noventa días de retraso.",
         "En restricciones, el precio publicado no se abre por tipo: el €/MWh de COT y el de SOT de una misma fila son el mismo.",
-        "El coste base de la operación reforzada es un contrafactual, no una liquidación: supone que sin el apagón el control de tensión habría seguido costando lo de los cuatro primeros meses de 2025.",
-        "El €/MVArh depende del ángulo entre activa y reactiva, que no es observable. Aquí se ha usado α = 45°.",
+        "COT y SOT: el I3 da el ingreso bruto (energía × precio de restricciones). La prima sobre el spot (ingreso − energía × precio del diario del mismo periodo) es lo que se puede llamar coste del servicio; la referencia previa al apagón (1-ene a 27-abr-2025) es un contrafactual propio. La cifra oficial de la operación reforzada es la de REE y la CNMC.",
+        "Tiempo real: cuando ESIOS deja huecos, se completan con REE en tiempo real (demanda.ree.es) tras validar cada serie en los cuartos comunes; el origen de cada serie sale en «Series y fuentes» y en el control de calidad.",
         "Techo de arbitraje, ratio de captura y semáforos son cálculos propios de este informe con datos públicos: sirven para comparar semanas, no son ingresos ni recomendaciones.",
         "Calendario: el lunes se publica la edición provisional (mercados, balance, mix y baterías completos; las secciones de I3 con la última semana completa) y, en cuanto REE publica el I3 de los siete días (D+4: el del domingo, entre el jueves y el viernes), el informe se regenera solo con todas las secciones de la semana.",
     ]
@@ -465,7 +482,7 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
         fig.text(0.06, 0.15, textwrap.fill("Páginas omitidas en esta edición por un dato que no se pudo procesar: " + "; ".join(res["_errores_pdf"]), 170),
                  fontsize=8.5, color=C["coral"], va="top")
     d.guardar(fig)
-    fig = d.diapositiva("Series utilizadas y su cobertura", fuente="Cobertura = porcentaje de cuartos de hora de la semana con dato. El IDA3 cubre por diseño solo de 12:00 a 24:00 (≈ 50 %); en el resto, una cobertura baja es un día que el mercado no se celebró o que ESIOS aún no ha publicado.")
+    fig = d.diapositiva("Series utilizadas y su cobertura", fuente="Cobertura = porcentaje de cuartos de hora de la semana con dato; «REE x %» = parte completada con REE en tiempo real (el resto, ESIOS). El IDA3 cubre por diseño solo de 12:00 a 24:00 (≈ 50 %); en el resto, una cobertura baja es un día que el mercado no se celebró o que ESIOS aún no ha publicado.")
     y = 0.80
     cob = list(res["cobertura"].items())
     mitad = (len(cob) + 1) // 2
@@ -475,11 +492,12 @@ def metodologia(d, res, cfg, meta, i3_estado=None):
         for k, c in tramo:
             m = meta.get(k, {})
             fig.text(x0, yy, textwrap.shorten(str(m.get("nombre", k)), 30), fontsize=8.5, va="center")
-            fig.text(x0 + 0.28, yy, f"ID {m.get('id', '—')}", fontsize=8.5, va="center", color=C["gris"])
+            fig.text(x0 + 0.24, yy, f"ID {m.get('id', '—')}", fontsize=8.5, va="center", color=C["gris"])
             est = "ESTIMA" in m.get("aviso", "")                      # completada con estimación: no es dato publicado
             ok = c > 0.97 or (k in ("ida3", "casada_ida3") and c >= 0.45)  # el IDA3 solo cubre 12-24 h por diseño
-            fig.text(x0 + 0.42, yy, f"{c * 100:.0f} %" + (" est." if est else ""), fontsize=8.5, va="center", ha="right",
-                     color=C["mostaza"] if est else (C["verde"] if ok else C["coral"]))
+            o = m.get("origen")
+            fig.text(x0 + 0.42, yy, f"{c * 100:.0f} %" + (" est." if est else "") + (f" · REE {o['ree'] * 100:.0f} %" if o and o["ree"] > 0 else ""),
+                     fontsize=8.5, va="center", ha="right", color=C["mostaza"] if est else (C["verde"] if ok else C["coral"]))
             yy -= 0.034
     avisos = [f"{m['nombre']}: {m['aviso']}" for m in meta.values() if m.get("aviso")]
     if avisos:
@@ -499,7 +517,9 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     esa página, se anota en «Cómo leer este informe» y el informe sale igual."""
     from . import extras as X
     from . import pdf_i3 as P3
+    from . import validacion as V
 
+    res["_meta"] = meta
     t = redactar(res)
     per = f"semana {res['etiqueta'][-2:]}/{res['etiqueta'][:4]}"
     d = Deck(ruta, cfg.get("marca", "Radar del mercado eléctrico"), cfg.get("autor", ""), per)
@@ -538,6 +558,7 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
       "(ID 632/633), así que solo se muestra la requerida.", "MW")
     S(demanda, d, res, t)
     S(X.sec_mix, d, res)
+    S(V.pag_redata, d, res)
     S(tabla_mercados, d, res, cfg)
     ok3 = i3 is not None and len(i3) > 0
     if ok3:
@@ -561,10 +582,9 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
         S(P3.fase_tipologia, d, i3, dias, rango_i3)
         S(P3.tabla_fases, d, i3, rango_i3)
         S(P3.reparto_tecnologia, d, i3, rango_i3)
-        S(P3.cot_sot_dia, d, i3, dias, rango_i3)
         if i3_hist is not None and len(i3_hist):
             f0, f1 = i3_hist["fecha"].min().date(), i3_hist["fecha"].max().date()
-            S(P3.operacion_reforzada, d, i3_hist, f"{f0} a {f1} ({(f1 - f0).days + 1} días)")
+            S(P3.operacion_reforzada, d, i3_hist, f"{f0} a {f1} ({(f1 - f0).days + 1} días)", oficiales=cfg.get("oficiales_operacion_reforzada"))
     # ---- 04 lectura propia
     n_sec = 4 if ok3 else 2
     separador(d, n_sec, "Almacenamiento y renovables: lectura propia", "Lo que el mercado dice sobre baterías, solar y servicios de balance, más allá de las liquidaciones.")
@@ -586,6 +606,8 @@ def generar_pdf(res, cfg, meta, ruta, demo=False, i3=None, i3_hist=None, i3_esta
     S(X.sec_glosario, d)
     res["_errores_pdf"] = list(d.errores)
     metodologia(d, res, cfg, meta, i3_estado)
+    S(V.pag_fuentes, d, res, meta)
+    S(V.pag_control, d, res)                      # página final: control de calidad de los datos
     d.cerrar()
     if d.errores:
         print("AVISO: páginas omitidas por error:\n  " + "\n  ".join(d.errores))
