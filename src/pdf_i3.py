@@ -388,29 +388,17 @@ def reparto_tecnologia(d, i3, rango):
     d.guardar(fig)
 
 
-def cot_sot_dia(d, i3, dias, rango):
-    r = i3[(i3["mercado"] == "Restricciones MD") & (i3["fase"] == "MD · Fase I") & (i3["sentido"] == "Subir") & (i3["tipologia"].isin(["COT", "SOT"]))]
-    ing = r[r["magnitud"] == "ingreso"].groupby("fecha")["valor"].sum().reindex(dias).fillna(0)
-    act = r[r["magnitud"] == "energia_x_spot"].groupby("fecha")["valor"].sum().reindex(dias).fillna(0)
-    rea = (ing - act).clip(lower=0)
-    fig = d.diapositiva("Ingreso de COT y SOT día a día, separando activa y reactiva",
-                        "Lo que se cobra por encima del precio del mercado diario de cada hora es lo que el sistema paga por el servicio de tensión. Con α = 45° la tangente vale 1, "
-                        "así que los MVArh son los MWh y el €/MVArh es la prima sin más.", FUENTE_I3.format(rango=rango))
-    ax = d.eje(fig)
-    x = np.arange(len(dias))
-    ax.bar(x, act.values / 1e6, 0.62, color=C["azul"], label="Energía activa (a precio spot)")
-    ax.bar(x, rea.values / 1e6, 0.62, bottom=act.values / 1e6, color=C["mostaza"], label="Energía reactiva (prima sobre el spot)")
-    ax.set_xticks(x)
-    ax.set_xticklabels([q.strftime("%Y-%m-%d") for q in dias], fontsize=9)
-    ax.set_ylabel("M€")
-    ax.legend(ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.1), frameon=False)
-    d.guardar(fig)
-
-
 # ------------------------------------------------------------------ operación reforzada
-def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27"):  # víspera del apagón del 28-abr-2025
-    """hist: tabla I3 completa desde 2025-01-01. Devuelve diccionario con cifras clave."""
-    h = hist[(hist["mercado"] == "Restricciones MD") & (hist["fase"] == "MD · Fase I") & (hist["sentido"] == "Subir") & (hist["magnitud"] == "ingreso") & (hist["tipologia"].isin(["COT", "SOT"]))]
+ETQ_ING = "Ingreso bruto de COT y SOT (fase I del diario, a subir)"
+
+
+def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27", oficiales=None):  # víspera del apagón del 28-abr-2025
+    """hist: tabla I3 completa desde 2025-01-01. El I3 da el INGRESO BRUTO (energía × precio de restricciones);
+    la métrica comparable con REE es la PRIMA SOBRE EL SPOT: Σ energía × (precio de restricciones − precio del diario
+    del mismo periodo) = ingreso − energia_x_spot (calculado periodo a periodo con el diario de ese día al cargar el I3).
+    Referencia previa al apagón (1-ene a 27-abr-2025): contrafactual propio; la cifra oficial es la de REE/CNMC."""
+    r = hist[(hist["mercado"] == "Restricciones MD") & (hist["fase"] == "MD · Fase I") & (hist["sentido"] == "Subir") & (hist["tipologia"].isin(["COT", "SOT"]))]
+    h = r[r["magnitud"] == "ingreso"]
     if len(h) == 0:
         return None
     dia = h.groupby(["fecha", "tipologia"])["valor"].sum().unstack("tipologia").fillna(0)
@@ -418,19 +406,28 @@ def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27"):  # víspera de
         if t not in dia:
             dia[t] = 0.0
     dia["tot"] = dia["COT"] + dia["SOT"]
+    dia["mwh"] = r[r["magnitud"] == "energia"].groupby("fecha")["valor"].sum().reindex(dia.index).fillna(0)
+    xs = r[r["magnitud"] == "energia_x_spot"].groupby("fecha")["valor"].sum().reindex(dia.index)
+    dia["prima"] = dia["tot"] - xs                                     # NaN el día sin precio del diario
     pre = dia[dia.index <= pd.Timestamp(corte)]
-    base_dia = float(pre["tot"].mean()) if len(pre) else float(dia["tot"].mean())
-    base_cot, base_sot = (float(pre["COT"].mean()), float(pre["SOT"].mean())) if len(pre) else (0.0, 0.0)
+    pre = pre if len(pre) else dia
+    pv = pre.dropna(subset=["prima"])
+    base_prima = float(pv["prima"].mean()) if len(pv) else np.nan             # €/día
+    base_prima_mwh = float(pv["prima"].sum() / pv["mwh"].sum()) if len(pv) and pv["mwh"].sum() else np.nan
+    base_mwh = float(pre["mwh"].mean())                                        # MWh/día programados
     dia["anio"] = dia.index.year
-    por_anio = dia.groupby("anio").agg(dias=("tot", "count"), COT=("COT", "sum"), SOT=("SOT", "sum"), total=("tot", "sum"))
-    por_anio["base"] = por_anio["dias"] * base_dia
-    por_anio["sobre"] = por_anio["total"] - por_anio["base"]
+    por_anio = dia.groupby("anio").agg(dias=("tot", "count"), COT=("COT", "sum"), SOT=("SOT", "sum"), total=("tot", "sum"),
+                                       mwh=("mwh", "sum"), prima=("prima", "sum"), dias_prima=("prima", "count"))
+    por_anio["prima_mwh"] = por_anio["prima"] / por_anio["mwh"].replace(0, np.nan)
+    por_anio["sobre_ref"] = por_anio["prima"] - por_anio["dias_prima"] * base_prima
+    por_anio["mwh_dia"] = por_anio["mwh"] / por_anio["dias"]
     ult = dia.index.max()
     parcial = {a: (a == ult.year and ult < pd.Timestamp(f"{a}-12-31")) for a in por_anio.index}
     marca = lambda a: f"{a}*" if parcial[a] else str(a)
+    fte = f"Fuente: I3 de REE, {rango_hist}. {ETQ_ING}. *Año incompleto: el último con dato llega al {ult.date()}."
     # ---- portada de bloque
-    fig = d.diapositiva("Seguimiento de la Operación Reforzada", None, f"Fuente: I3 de REE, {rango_hist}. COT y SOT a subir, fase I del mercado diario. *Año incompleto: el último con dato llega al {ult.date()}.")
-    fig.text(0.06, 0.82, "Las dos restricciones de tensión que la sostienen: qué son y cuánto cuestan", fontsize=14, color=C["gris"], fontweight="bold")
+    fig = d.diapositiva("Seguimiento de la Operación Reforzada", None, fte)
+    fig.text(0.06, 0.82, "Las dos restricciones de tensión que la sostienen: qué son y cuánto ingresan", fontsize=14, color=C["gris"], fontweight="bold")
     from matplotlib.patches import FancyBboxPatch
 
     def caja(x, y, w, h_, col):
@@ -442,8 +439,8 @@ def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27"):  # víspera de
     fig.text(0.53, 0.73, "SOT · Sobretensión", fontsize=13, fontweight="bold", color=C["coral"])
     fig.text(0.53, 0.705, textwrap.fill("El caso concreto en el que la tensión se va por arriba, típicamente con poca demanda y mucha red en vacío. Se resuelve absorbiendo reactiva. Sigue por detrás del COT, también en el último año.", 70), fontsize=8.8, va="top", linespacing=1.4)
     a1, a2 = por_anio.index[0], por_anio.index[-1]
-    cards = [(0.05, C["verde"], "COT · CONTROL DE TENSIÓN", [(marca(a), f"{n(por_anio.loc[a, 'COT'] / 1e6, 0)} M€") for a in (a1, a2) if a in por_anio.index]),
-             (0.365, C["indigo"] if "indigo" in C else "#1F2933", "SOT · SOBRETENSIÓN", [(marca(a), f"{n(por_anio.loc[a, 'SOT'] / 1e6, 0)} M€") for a in (a1, a2) if a in por_anio.index])]
+    cards = [(0.05, C["verde"], "COT · INGRESO BRUTO", [(marca(a), f"{n(por_anio.loc[a, 'COT'] / 1e6, 0)} M€") for a in (a1, a2) if a in por_anio.index]),
+             (0.365, "#1F2933", "SOT · INGRESO BRUTO", [(marca(a), f"{n(por_anio.loc[a, 'SOT'] / 1e6, 0)} M€") for a in (a1, a2) if a in por_anio.index])]
     for x, col, tit, vals in cards:
         caja(x, 0.35, 0.29, 0.16, col)
         fig.text(x + 0.02, 0.485, tit, fontsize=8.5, color="white")
@@ -458,58 +455,83 @@ def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27"):  # víspera de
         fig.text(0.695, 0.44, f"{lid.index[0]}   {n(lid.iloc[0], 1)} %", fontsize=12.5, fontweight="bold", color=C["musgo"])
         fig.text(0.695, 0.395, f"Resto   {n(100 - lid.iloc[0], 1)} %", fontsize=12.5, fontweight="bold", color=C["musgo"])
     caja(0.05, 0.12, 0.90, 0.19, "#1F2933")
-    fig.text(0.07, 0.275, textwrap.fill("Las dos son problemas de red que hoy solo resuelven máquinas síncronas. Por eso el control de tensión con electrónica de potencia (P.O. 7.4) no es una mejora técnica menor: "
-                                        f"es lo que abriría estos {n(por_anio.loc[a1, 'total'] / 1e6, 0)} M€ de {a1} a algo más que el ciclo combinado.", 125), fontsize=11, color="white", va="top", linespacing=1.5)
+    fig.text(0.07, 0.275, textwrap.fill("Las dos son problemas de red que se han resuelto sobre todo con máquinas síncronas. El P.O. 7.4 de control de tensión, aprobado por la CNMC en junio de 2025 "
+                                        "y en vigor desde el 1-ene-2026, permite prestar el servicio con electrónica de potencia (renovables incluidas) mediante consignas; la Resolución de "
+                                        "30-jun-2026 (BOE de 10-jul-2026) lo modificó para incentivar a las renovables. De su despliegue depende que estos "
+                                        f"{n(por_anio.loc[a1, 'total'] / 1e6, 0)} M€ de ingreso bruto de {a1} se repartan más allá del ciclo combinado.", 125),
+             fontsize=10.5, color="white", va="top", linespacing=1.5)
     d.guardar(fig)
-    # ---- acumulado
-    fig = d.diapositiva("La operación reforzada se paga con gas",
-                        f"Coste base más sobrecoste: la media diaria de COT y SOT del {dia.index.min().date()} al {corte} (víspera del apagón) son {n(base_dia, 0)} € al día. "
-                        "Multiplicada por los días de cada año da el coste base; lo que hay por encima es el sobrecoste de la operación reforzada.",
-                        f"Fuente: I3 de REE, {rango_hist}. COT y SOT a subir, fase I del mercado diario. *Año incompleto.")
+    # ---- ingreso bruto y prima sobre el spot, acumulados
+    fig = d.diapositiva("COT y SOT: ingreso bruto y prima sobre el spot",
+                        f"El ingreso bruto (energía × precio de restricciones) no es un coste: incluye la energía, que se habría pagado igual al precio del diario. La prima sobre el spot "
+                        f"descuenta ese precio periodo a periodo y es la cifra que se puede llamar coste del servicio. Referencia previa al apagón ({dia.index.min().date()} a {corte}): "
+                        f"{n(base_prima, 0)} € de prima al día ({n(base_prima_mwh, 1)} €/MWh) y {n(base_mwh, 0)} MWh/día programados. Es un contrafactual propio; la cifra oficial es la de REE y la CNMC.",
+                        fte + " Prima = Σ energía × (precio de restricciones − precio del diario de OMIE de ese día y periodo).")
     fig.add_artist(Rectangle((0.045, 0.60), 0.28, 0.065, color=C["verde"], transform=fig.transFigure))
     fig.add_artist(Rectangle((0.34, 0.60), 0.30, 0.065, color=C["panel"], transform=fig.transFigure))
     fig.add_artist(Rectangle((0.655, 0.60), 0.30, 0.065, color="#1F2933", transform=fig.transFigure))
-    for x, tit, col, key in ((0.055, "COSTE BASE", "white", "base"), (0.35, "SOBRECOSTE OP. REFORZADA", C["tinta"], "sobre"), (0.665, "TOTAL COT + SOT", "white", "total")):
+    for x, tit, col, key in ((0.055, "INGRESO BRUTO", "white", "total"), (0.35, "PRIMA SOBRE EL SPOT", C["tinta"], "prima"), (0.665, "PRIMA POR ENCIMA DE LA REFERENCIA PREVIA", "white", "sobre_ref")):
         fig.text(x, 0.645, tit, fontsize=7.5, color=col)
-        fig.text(x, 0.612, "   ".join(f"{marca(a)} {n(por_anio.loc[a, key] / 1e6, 0)} M€" for a in por_anio.index), fontsize=10.5, fontweight="bold", color="#FFD27A" if key == "total" else (C["azul"] if key == "sobre" else "white"))
+        fig.text(x, 0.612, "   ".join(f"{marca(a)} {n(por_anio.loc[a, key] / 1e6, 0)} M€" for a in por_anio.index), fontsize=10.5, fontweight="bold",
+                 color="#FFD27A" if key == "sobre_ref" else (C["azul"] if key == "prima" else "white"))
     ax = d.eje(fig, caja=[0.08, 0.12, 0.86, 0.43])
-    cum_c, cum_s = dia["COT"].cumsum() / 1e6, (dia["COT"] + dia["SOT"]).cumsum() / 1e6
-    ax.fill_between(dia.index, 0, cum_s, color=C["mostaza"], alpha=0.55, label="SOT (€) acumulado")
-    ax.fill_between(dia.index, 0, cum_c, color=C["azul"], alpha=0.6, label="COT (€) acumulado")
-    ref = np.arange(1, len(dia) + 1) * base_dia / 1e6
-    ax.plot(dia.index, ref, color=C["gris"], ls="--", lw=1.4, label="Referencia anterior al apagón (COT+SOT)")
+    ax.fill_between(dia.index, 0, dia["tot"].cumsum() / 1e6, color=C["mostaza"], alpha=0.45, label="Ingreso bruto acumulado")
+    ax.fill_between(dia.index, 0, dia["prima"].fillna(0).cumsum() / 1e6, color=C["azul"], alpha=0.6, label="Prima sobre el spot acumulada")
+    ax.plot(dia.index, dia["prima"].notna().cumsum() * base_prima / 1e6, color=C["gris"], ls="--", lw=1.4, label="Prima a la referencia previa al apagón")
     ax.set_ylabel("M€")
     ax.legend(ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.1), frameon=False, fontsize=8.5)
     d.guardar(fig)
-    # ---- año a año
-    fig = d.diapositiva("El coste del control de tensión, año a año",
-                        "El denominador del coste base son los días con dato, no los del calendario: el 29 de abril de 2025 no tiene fase I (es el día siguiente al apagón) y con 365 días la referencia saldría inflada.",
-                        f"Fuente: I3 de REE, {rango_hist}. *Año incompleto: el último con dato llega al {ult.date()}.")
-    filas = [[marca(a), int(r_["dias"]), eur(r_["COT"]), eur(r_["SOT"]), eur(r_["total"]), eur(r_["base"]), eur(r_["sobre"])] for a, r_ in por_anio.iterrows()]
-    _tabla(d, fig, ["Año", "Días con dato", "COT", "SOT", "Total", "Coste base", "Sobrecoste"], filas, [0.06, 0.20, 0.33, 0.47, 0.61, 0.75, 0.88], ["left"] + ["right"] * 6, y0=0.72, alto=0.06, fs=9.5)
+    # ---- año a año + contraste con cifras oficiales
+    fig = d.diapositiva("COT y SOT año a año, y contraste con las cifras oficiales",
+                        "Días con dato, no del calendario: el 29-abr-2025 no tiene fase I. La energía programada es un indicador independiente del precio: dice cuánto más se usa "
+                        "el servicio, con el gas a 30 o a 60 €/MWh.", fte)
+    me = lambda v: f"{n(v / 1e6, 1)} M€"
+    filas = [[marca(a), int(r_["dias"]), me(r_["total"]), n(r_["mwh"] / 1e3, 0), me(r_["prima"]), n(r_["prima_mwh"], 1), me(r_["sobre_ref"]),
+              f"{n(r_['mwh_dia'], 0)} ({n(r_['mwh_dia'] / base_mwh, 1) if base_mwh else 's/d'}×)"] for a, r_ in por_anio.iterrows()]
+    _tabla(d, fig, ["Año", "Días", "Ingreso bruto", "Energía (GWh)", "Prima s/ spot", "Prima €/MWh", "Prima s/ referencia", "MWh/día (× ref.)"], filas,
+           [0.06, 0.05, 0.19, 0.30, 0.42, 0.52, 0.66, 0.82], ["left"] + ["right"] * 7, y0=0.72, alto=0.055, fs=9)
+    caja2 = 0.72 - 0.025 - len(filas) * 0.055 - 0.07
+    fig.add_artist(Rectangle((0.045, 0.10), 0.91, caja2 - 0.10, facecolor="white", edgecolor=C["mostaza"], lw=1.5, transform=fig.transFigure))
+    fig.text(0.06, caja2 - 0.03, "Contraste con cifras oficiales · dato externo estático (se cita, no se recalcula)", fontsize=11, fontweight="bold", color=C["marron"])
+    yy = caja2 - 0.075
+    for o in (oficiales or []):
+        fig.text(0.07, yy, o.get("cifra", ""), fontsize=13, fontweight="bold", color=C["verde"], va="center")
+        fig.text(0.17, yy, textwrap.shorten(f"{o.get('concepto', '')}. {o.get('fuente', '')}; consulta {o.get('consulta', '')}.", 210), fontsize=8, va="center")
+        yy -= 0.05
+    fig.text(0.07, 0.115, textwrap.fill("Las cifras de este informe se limitan a COT y SOT a subir en la fase I del diario (I3). No son comparables una a una con el coste total de las "
+                                                 "restricciones técnicas ni con la estimación oficial de la operación reforzada, que REE y la CNMC calculan con su propio método.", 175),
+             fontsize=7.8, color=C["gris"], va="bottom")
     d.guardar(fig)
     # ---- mes a mes
-    m = dia[["COT", "SOT"]].copy()
+    m = dia[["prima", "mwh"]].copy()
+    m["dias"] = 1
     m["mes"] = m.index.to_period("M").astype(str)
-    mm = m.groupby("mes")[["COT", "SOT"]].sum() / 1e6
-    fig = d.diapositiva("El sobrecoste, mes a mes",
-                        f"El salto está en {corte[:4]}-{int(corte[5:7]) + 1:02d}, el mes siguiente al apagón. Para situarlo: a la media diaria anterior, un mes de treinta días costaba {n(base_dia * 30, 0)} €.",
-                        f"Fuente: I3 de REE, {rango_hist}.")
-    ax = d.eje(fig, caja=[0.08, 0.2, 0.87, 0.50])
-    ax.bar(range(len(mm)), mm["COT"], 0.7, color=C["coral"], label="COT")
-    ax.bar(range(len(mm)), mm["SOT"], 0.7, bottom=mm["COT"], color=C["mostaza"], label="SOT")
-    ax.axhline(base_dia * 30 / 1e6, color=C["gris"], ls="--", lw=1.2)
+    mm = m.groupby("mes").agg(prima=("prima", "sum"), mwh=("mwh", "sum"), dias=("dias", "sum"))
+    fig = d.diapositiva("Prima sobre el spot y energía programada de COT y SOT, mes a mes",
+                        f"Barras: prima sobre el spot de cada mes. Línea: energía programada por COT y SOT (MWh/día), que no depende del precio. Las líneas discontinuas son la referencia "
+                        f"previa al apagón: {n(base_prima * 30 / 1e6, 1)} M€ de prima en un mes de treinta días y {n(base_mwh, 0)} MWh/día.", fte)
+    ax = d.eje(fig, caja=[0.08, 0.2, 0.84, 0.50])
+    ax.bar(range(len(mm)), mm["prima"] / 1e6, 0.7, color=C["azul"], label="Prima sobre el spot (M€)")
+    ax.axhline(base_prima * 30 / 1e6, color=C["azul"], ls="--", lw=1.1)
+    ax.set_ylabel("M€")
+    ax2 = ax.twinx()
+    ax2.plot(range(len(mm)), mm["mwh"] / mm["dias"], color=C["coral"], lw=2.2, marker="o", ms=3, label="Energía programada (MWh/día)")
+    ax2.axhline(base_mwh, color=C["coral"], ls="--", lw=1.1)
+    ax2.set_ylabel("MWh/día")
+    ax2.spines["top"].set_visible(False)
     ax.set_xticks(range(len(mm)))
     ax.set_xticklabels(mm.index, rotation=60, ha="right", fontsize=7.5)
-    ax.set_ylabel("M€")
-    ax.legend(ncol=2, frameon=False, loc="upper left")
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, ncol=2, frameon=False, loc="upper left")
     d.guardar(fig)
     # ---- quién cobra
     a = a1
     q = h[h["fecha"].dt.year == a].groupby("tecnologia")["valor"].sum().sort_values(ascending=False)
-    fig = d.diapositiva(f"Quién cobra el control de tensión ({a})",
+    fig = d.diapositiva(f"Quién cobra el ingreso bruto de COT y SOT ({a})",
                         "El reparto se lee de un año completo. Mezclar un año entero con medio daría una cuota que no es de ninguno de los dos, y este es justo el número que se cita fuera de contexto.",
-                        f"Fuente: I3 de REE, {rango_hist}. Las dos son problemas de red que hoy solo resuelven máquinas síncronas.")
+                        f"Fuente: I3 de REE, {rango_hist}. {ETQ_ING}. Tecnología = campo «Concepto» de la hoja I3DIA03 (restricciones del PDBF), asignado por coincidencia exacta "
+                        "en src/i3_mapa.yml: «Nuclear» es el concepto «Nuclear» del I3, no un error de mapeo.")
     ax = d.eje(fig, caja=[0.16, 0.14, 0.40, 0.50])
     ax.grid(axis="y", visible=False)
     ax.barh(range(len(q)), q.values / 1e6, color=C["azul"], height=0.5)
@@ -518,6 +540,6 @@ def operacion_reforzada(d, hist, rango_hist, corte="2025-04-27"):  # víspera de
     ax.invert_yaxis()
     ax.set_xlabel("M€")
     filas = [[t, eur(v), f"{n(v / q.sum() * 100, 1)} %"] for t, v in q.items()]
-    _tabla(d, fig, ["Tecnología", "Ingreso", "%"], filas, [0.63, 0.73, 0.85], ["left", "right", "right"], y0=0.66, alto=0.045, fs=9, x0=0.62, ancho=0.335)
+    _tabla(d, fig, ["Tecnología", "Ingreso bruto", "%"], filas, [0.63, 0.73, 0.85], ["left", "right", "right"], y0=0.66, alto=0.045, fs=9, x0=0.62, ancho=0.335)
     d.guardar(fig)
-    return {"base_dia": base_dia, "por_anio": por_anio}
+    return {"base_prima_dia": base_prima, "por_anio": por_anio}
