@@ -157,7 +157,7 @@ def bess_multimercado(spot, otros, bat):
     return out
 
 
-def spreads_tb(precio, horas=(1, 2, 4)):
+def spreads_tb(precio, horas=(1, 2, 4), horario=False):
     """Spread «top-bottom» de cada día: media de los k h más caras menos media de las k h más baratas
     (en cuartos de hora: 4k cuartos). Métrica estándar del sector para dimensionar baterías de k horas.
     Devuelve {k: media de la semana} con días de >= 90 % de datos."""
@@ -168,8 +168,8 @@ def spreads_tb(precio, horas=(1, 2, 4)):
         for _, g in precio.groupby(dias):
             if g.notna().mean() < 0.9:
                 continue
-            v = np.sort(g.dropna().values)
-            q = 4 * k
+            v = np.sort(g.dropna().values) if not horario else np.sort(g.groupby(g.index.floor("h")).mean().dropna().values)
+            q = 4 * k if not horario else k
             if len(v) >= 2 * q:
                 vals.append(v[-q:].mean() - v[:q].mean())
         out[k] = float(np.mean(vals)) if vals else np.nan
@@ -384,6 +384,7 @@ def analizar(datos, cfg, lunes):
     # spreads top-bottom y techo multimercado (diario + subastas intradiarias)
     try:
         res["tb"] = spreads_tb(spot)
+        res["tb_h"] = spreads_tb(spot, horario=True)                # versión horaria (media de los 4 cuartos)
         otros = [res["series"].get(k) for k in ("ida1", "ida2", "ida3")]
         if any(o is not None and o.notna().mean() > 0.3 for o in otros):
             mm = bess_multimercado(spot, otros, bat)
@@ -443,8 +444,18 @@ def mix_semana(datos, cfg, idx):
         "renovable_pct": float(ren.sum() / total.sum() * 100) if total.sum() else np.nan,
         "renovable_max": float((ren / total).max() * 100) if total.notna().any() else np.nan,
         "renovable_min": float((ren / total).min() * 100) if total.notna().any() else np.nan,
-        "horas_ren_demanda": float(((ren >= dem) & dem.notna()).sum() / 4) if dem.notna().any() else np.nan,
     }
+    # renovable = eólica + hidráulica convencional + FV + solar térmica + térmica renovable, por cuarto de hora,
+    # frente a la demanda real del mismo cuarto (sin intercambios, turbinación de bombeo ni baterías)
+    if dem.notna().any():
+        ok = dem.notna() & (dem > 0) & total.notna()
+        for suf, r_ in (("", ren), ("_neto", ren + bal.get("cons_bombeo", pd.Series(0.0, index=idx)).fillna(0).clip(upper=0))):
+            q = (r_ / dem).where(ok)
+            out["horas_ren_demanda" + suf] = float((q > 1).sum() / 4)
+            out["ren_dem_max" + suf] = float(q.max() * 100) if q.notna().any() else np.nan
+            out["ren_dem_max_t" + suf] = q.idxmax().tz_convert(TZ) if q.notna().any() else None
+    else:
+        out["horas_ren_demanda"] = np.nan
     falta = total.isna()
     if falta.any():                                               # ESIOS deja a veces horas sin tiempo real
         out["hueco_h"] = float(falta.sum() / 4)
@@ -461,7 +472,10 @@ def baterias_semana(datos, idx, spot, res):
     c, e = alinear(datos.get("bal_bat_carga"), idx), alinear(datos.get("bal_bat_entrega"), idx)
     if c.notna().mean() < 0.5 or e.notna().mean() < 0.5:
         return None
-    carga = (-c).clip(lower=0)                                                 # ESIOS publica la carga en negativo
+    # ESIOS publica la carga en negativo. Se toma el valor NETO (−2166), sin recortar: la medida trae
+    # lecturas positivas de pocos MW (deriva de telemedida) y recortarlas cuarto a cuarto inflaba la
+    # energía cargada (537 frente a 485 MWh en la S45). Así cuadra con consBat de demanda.ree.es.
+    carga = -c
     entrega = e.clip(lower=0)
     mc, md = carga.sum() / 4, entrega.sum() / 4                                 # MWh
     def pond(p, w):
