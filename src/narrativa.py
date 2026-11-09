@@ -41,6 +41,41 @@ def _tendencia(v, umbral=3.0):
     return "en línea"
 
 
+def _cuando(t):
+    return f"el {DIAS[t.weekday()]} {t.day} a las {t:%H:%M}" if t is not None else ""
+
+
+def frase_ren_demanda(m):
+    """«Renovables frente a demanda» (renovable = eólica + hidráulica convencional + FV + solar térmica +
+    térmica renovable, cuarto a cuarto, frente a la demanda real del mismo cuarto)."""
+    h = m.get("horas_ren_demanda") if m else None
+    if h is None or h != h:
+        return ""
+    mx, t = m.get("ren_dem_max"), m.get("ren_dem_max_t")
+    if h == 0:
+        s = f"En ningún cuarto de hora la generación renovable cubrió toda la demanda (máximo: {n(mx, 1)} % {_cuando(t)})."
+    else:
+        s = (f"Durante {n(h, 1)} h la generación renovable superó a toda la demanda peninsular (máximo: {n(mx, 1)} % {_cuando(t)}); "
+             "el excedente se exportó o se usó para bombear.")
+        hn = m.get("horas_ren_demanda_neto")
+        if hn is not None and hn == hn:
+            if hn == 0:
+                s += (f" Descontando el consumo de bombeo, en ningún cuarto de hora la cubrió (máximo: {n(m.get('ren_dem_max_neto'), 1)} % "
+                      f"{_cuando(m.get('ren_dem_max_t_neto'))}).")
+            else:
+                s += f" Descontando el consumo de bombeo, la superó durante {n(hn, 1)} h."
+    return s
+
+
+def frase_hueco(txt, ree_ok, que):
+    """Huecos que quedan tras completar ESIOS con REE en tiempo real: dice qué falta en las DOS fuentes."""
+    if not txt:
+        return ""
+    if ree_ok:
+        return f"Sin dato de {que} ni en ESIOS ni en REE en tiempo real {txt}"
+    return f"ESIOS no publicó {que} {txt} y REE en tiempo real no respondió al generar el informe"
+
+
 def redactar(res):
     t = {}
     pm, vp = res["precio_medio"], res["var_prev"]
@@ -159,7 +194,7 @@ def redactar(res):
         t["h_dem"] = f"La demanda alcanzó {n(d['pico'], 0)} MW el {DIAS_LARGO[d['pico_t'].weekday()]} {d['pico_t'].day} a las {d['pico_t'].strftime('%H:%M')}"
         t["p_dem"] = f"Media semanal de {n(d['media'], 0)} MW y valle de {n(d['valle'], 0)} MW."
         if d.get("hueco_txt"):
-            t["p_dem"] += f" ESIOS no publicó la demanda real {d['hueco_txt']}."
+            t["p_dem"] += " " + frase_hueco(d["hueco_txt"], res.get("ree_tr_ok"), "demanda real") + "."
         if "mape" in d:
             t["p_dem"] += f" El error medio de la previsión fue del {n(d['mape'], 2)} %."
     return t
