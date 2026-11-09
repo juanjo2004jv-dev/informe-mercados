@@ -14,6 +14,7 @@ on:
     - cron: "29 11 * * 1-6"
     - cron: "11 16 * * 1-6"
     - cron: "45 14 9 11 *"   # prueba única: lunes 9-nov-2026 a las 15:45 (Madrid)
+    - cron: "0 15 9 11 *"    # prueba única: lunes 9-nov-2026 a las 16:00 (Madrid)
   workflow_dispatch:
     inputs:
       semana:
