@@ -273,7 +273,7 @@ def cargar_almacen():
 def guardar_almacen(df):
     df = df.copy()
     df["fecha"] = pd.to_datetime(df["fecha"]).dt.strftime("%Y-%m-%d")
-    df.sort_values(["fecha", "mercado", "tecnologia"]).to_csv(ALMACEN, index=False, compression="gzip")
+    df.sort_values(["fecha", "mercado", "tecnologia"]).to_csv(ALMACEN, index=False, compression={"method": "gzip", "mtime": 0})  # mtime fijo: mismo contenido = mismo archivo (sin commits vacíos)
 
 
 def spot_dia(cli, dia):
