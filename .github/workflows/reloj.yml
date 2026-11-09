@@ -35,7 +35,7 @@ jobs:
           from datetime import datetime, timedelta, timezone
           ahora = datetime.now(timezone.utc)
           HORAS = [(6, 17), (8, 43), (11, 29), (16, 11)]   # UTC, de lunes a sábado (07:17 en Madrid en invierno)
-          EXTRA = ["2026-11-09T15:00"]                     # pruebas puntuales (UTC)
+          EXTRA = []                                       # pruebas puntuales (UTC), p. ej. ["2026-11-09T15:00"]
           cand = []
           for d in range(4):
               dia = (ahora + timedelta(days=d)).date()
