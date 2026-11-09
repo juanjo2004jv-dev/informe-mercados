@@ -81,38 +81,46 @@ def canibalizacion(res):
 def senales(res, cfg, bd):
     """Semáforo por perfil. Reglas simples y transparentes (se enseñan en pantalla)."""
     fil = []
+    um = cfg.get("semaforos") or {}                       # umbrales de config.yml (convenciones de este informe)
+    a1, a2 = um.get("captura_fv_pct", [70, 85])
     cs = res["captura"].get("gen_solar_fv")
     if cs:
         r = cs["ratio"]
-        est = (ROJO, "Canibalización alta") if r < 70 else (AMBAR, "Canibalización moderada") if r < 85 else (VERDE, "Captura sana")
-        fil.append(("Promotor solar FV", est, f"Captura {n(r, 0)} % del precio medio. Regla: <70 % rojo, 70-85 % ámbar, >85 % verde."))
+        est = (ROJO, "Canibalización alta") if r < a1 else (AMBAR, "Canibalización moderada") if r < a2 else (VERDE, "Captura sana")
+        fil.append(("Promotor solar FV", est, f"Captura {n(r, 0)} % del precio medio. Regla: <{n(a1, 0)} % rojo, {n(a1, 0)}-{n(a2, 0)} % ámbar, >{n(a2, 0)} % verde."))
     else:
         fil.append(("Promotor solar FV", (C["gris"], "Sin dato"), "Falta la serie de generación solar (ver config.yml)."))
     b, p = res["bess_dia"], np.nanmean([x["bess_dia"] for x in res["semanas"][:-1]])
     v = (b / p - 1) * 100 if p else np.nan
-    est = (VERDE, "Techo al alza") if v > 10 else (ROJO, "Techo a la baja") if v < -10 else (AMBAR, "Techo estable")
-    fil.append(("Almacenamiento (arbitraje)", est, f"{n(b, 0)} €/MW·día, {n(v, 1, True)} % frente a la media de 4 semanas. Regla: ±10 %."))
+    tv = um.get("techo_var_pct", 10)
+    est = (VERDE, "Techo al alza") if v > tv else (ROJO, "Techo a la baja") if v < -tv else (AMBAR, "Techo estable")
+    fil.append(("Almacenamiento (arbitraje)", est, f"{n(b, 0)} €/MW·día, {n(v, 1, True)} % frente a la media de 4 semanas. Regla: ±{n(tv, 0)} %."))
     sp = res["spread_medio"]
-    est = (VERDE, "Spread amplio") if sp > 120 else (AMBAR, "Spread medio") if sp > 60 else (ROJO, "Spread estrecho")
+    s1, s2 = um.get("spread_eur_mwh", [60, 120])
+    est = (VERDE, "Spread amplio") if sp > s2 else (AMBAR, "Spread medio") if sp > s1 else (ROJO, "Spread estrecho")
     tb4 = (res.get("tb") or {}).get(4)
     extra = f" TB4 {n(tb4, 0)} €/MWh." if tb4 == tb4 and tb4 is not None else ""
-    fil.append(("Volatilidad intradía", est, f"Spread diario medio {n(sp, 0)} €/MWh.{extra} Regla: >120 verde, 60-120 ámbar, <60 rojo."))
+    fil.append(("Volatilidad intradía", est, f"Spread diario medio {n(sp, 0)} €/MWh.{extra} Regla: >{n(s2, 0)} verde, {n(s1, 0)}-{n(s2, 0)} ámbar, <{n(s1, 0)} rojo."))
     mm = res.get("multimercado")
     if mm and mm.get("uplift") == mm.get("uplift"):
         u = mm["uplift"]
-        est = (VERDE, "Intradiario aporta mucho") if u > 20 else (AMBAR, "Intradiario aporta algo") if u > 8 else (ROJO, "Intradiario aporta poco")
-        fil.append(("Arbitraje en intradiario", est, f"Techo con diario + IDA1-3: {n(mm['media'], 0)} €/MW·día ({n(u, 0, True)} % sobre solo diario). Regla: >20 % verde, 8-20 % ámbar."))
+        i1, i2 = (cfg.get("semaforos") or {}).get("intradiario_uplift_pct", [8, 20])
+        est = (VERDE, "Intradiario aporta mucho") if u > i2 else (AMBAR, "Intradiario aporta algo") if u > i1 else (ROJO, "Intradiario aporta poco")
+        fil.append(("Arbitraje en intradiario", est, f"Techo con diario + IDA1-3: {n(mm['media'], 0)} €/MW·día ({n(u, 0, True)} % sobre solo diario). Regla: >{n(i2, 0)} % verde, {n(i1, 0)}-{n(i2, 0)} % ámbar."))
     pr = bd.get("prima_afrr")
     if pr is not None:
-        est = (VERDE, "Prima de balance alta") if pr > 25 else (AMBAR, "Prima moderada") if pr > 8 else (ROJO, "Prima baja")
-        fil.append(("Servicios de balance", est, f"aFRR a subir paga {n(pr, 1, True)} €/MWh sobre el diario ({bd.get('prima_afrr_tipo', '')}). Regla: >25 verde, 8-25 ámbar."))
+        p1, p2 = um.get("prima_afrr_eur_mwh", [8, 25])
+        est = (VERDE, "Prima de balance alta") if pr > p2 else (AMBAR, "Prima moderada") if pr > p1 else (ROJO, "Prima baja")
+        fil.append(("Servicios de balance", est, f"aFRR a subir paga {n(pr, 1, True)} €/MWh sobre el diario ({bd.get('prima_afrr_tipo', '')}). Regla: >{n(p2, 0)} verde, {n(p1, 0)}-{n(p2, 0)} ámbar."))
     d = res["demanda"]
     if d and "mape" in d:
-        est = (VERDE, "Previsión precisa") if d["mape"] < 1.5 else (AMBAR, "Desvíos moderados") if d["mape"] < 3 else (ROJO, "Desvíos altos")
-        fil.append(("Calidad de previsión", est, f"Error medio de la previsión de demanda {n(d['mape'], 2)} %. Regla: <1,5 % verde."))
+        m1, m2 = um.get("mape_demanda_pct", [1.5, 3])
+        est = (VERDE, "Previsión precisa") if d["mape"] < m1 else (AMBAR, "Desvíos moderados") if d["mape"] < m2 else (ROJO, "Desvíos altos")
+        fil.append(("Calidad de previsión", est, f"Error medio de la previsión de demanda {n(d['mape'], 2)} %. Regla: <{n(m1, 1)} % verde, {n(m1, 1)}-{n(m2, 0)} % ámbar, >{n(m2, 0)} % rojo."))
     hn = res["horas_neg"]
-    est = (ROJO, "Muchas horas ≤ 0") if hn > 15 else (AMBAR, "Horas ≤ 0 presentes") if hn > 3 else (VERDE, "Pocas horas ≤ 0")
-    fil.append(("Precios cero y negativos", est, f"{n(hn, 1)} h a precio ≤ 0. Bueno para cargar, malo para vender sin almacenamiento."))
+    h1, h2 = um.get("horas_neg_h", [3, 15])
+    est = (ROJO, "Muchas horas ≤ 0") if hn > h2 else (AMBAR, "Horas ≤ 0 presentes") if hn > h1 else (VERDE, "Pocas horas ≤ 0")
+    fil.append(("Precios cero y negativos", est, f"{n(hn, 1)} h a precio ≤ 0. Regla: >{n(h2, 0)} h rojo, {n(h1, 0)}-{n(h2, 0)} h ámbar, <{n(h1, 0)} h verde."))
     return fil
 
 
@@ -323,17 +331,19 @@ def sec_glosario(d):
         ("COT · SOT", "Restricciones de control de tensión y de sobretensión: se resuelven con máquinas que dan o absorben reactiva."),
         ("RSI · RTD · SCA · SCB · ASE…", "Códigos de tipología con los que REE identifica en el I3 la causa de cada redespacho; se muestran tal como los publica REE."),
         ("Precio capturado", "Ingreso de una tecnología dividido por su energía: lo que cobra de media por cada MWh que vende."),
-        ("Techo de arbitraje", "Ingreso máximo teórico de una batería con previsión perfecta de precios del diario. No es un ingreso real."),
+        ("Techo de arbitraje", "Cota con previsión perfecta, no un ingreso: 1 MW / 4 MWh, 85 % ida y vuelta (√η al cargar y al descargar), 4 €/MWh de ciclado sobre lo descargado, ≤ 6 MWh/día."),
         ("Canibalización", "Caída del precio que cobra una tecnología porque todas producen a la vez (típico de la solar al mediodía)."),
-        ("Spread capturado", "Precio medio de descarga menos precio medio de carga de las baterías, ponderados por su energía."),
+        ("Spread capturado · TBk", "Descarga menos carga de las baterías, ponderados por energía. TBk: 4k cuartos más caros menos 4k más baratos de cada día."),
         ("Cuota renovable", "Generación renovable entre generación total peninsular (sin intercambios ni baterías; el bombeo cuenta como no renovable)."),
     ]
     y = 0.84
+    yy = 0.83
     for i, (k, v) in enumerate(items):
         col = i % 2
-        row = i // 2
         x0 = 0.05 + col * 0.46
-        yy = 0.82 - row * 0.102
+        if col == 0 and i:                              # alto de la fila según la entrada más larga de las dos
+            prev = items[i - 2:i]
+            yy -= 0.04 + 0.023 * max(textwrap.fill(x[1], 62).count("\n") + 1 for x in prev)
         fig.text(x0, yy, k, fontsize=11, fontweight="bold", color=C["coral"])
         fig.text(x0, yy - 0.018, textwrap.fill(v, 62), fontsize=8.8, va="top", color=C["tinta"], linespacing=1.35)
     d.guardar(fig)
@@ -354,17 +364,26 @@ def sec_mix(d, res):
     ks = [k for k in ORDEN_MIX if k in g.columns and g[k].fillna(0).sum() > 0]
     txt = (f"Las renovables cubrieron el {n(m['renovable_pct'], 1)} % de la generación peninsular (entre el {n(m['renovable_min'], 0)} % y el "
            f"{n(m['renovable_max'], 0)} % según el momento).")
-    if not np.isnan(m.get("horas_ren_demanda", np.nan)):
-        txt += f" Durante {n(m['horas_ren_demanda'], 1)} h la generación renovable superó a toda la demanda peninsular."
+    from .validacion import marca
+    from .narrativa import frase_hueco
+
+    rd = (res.get("qc") or {}).get("redata") or {}
+    b_rd = rd.get("balance") or {}
+    if b_rd.get("Generación renovable") and b_rd.get("Generación no renovable"):
+        txt += f" Con el balance diario de REData, la cuota es del {n(b_rd['Generación renovable'] / (b_rd['Generación renovable'] + b_rd['Generación no renovable']) * 100, 1)} %."
+    if m.get("txt_ren_dem"):
+        txt += " " + m["txt_ren_dem"] + marca(res, "renovables")
     if "saldo_intercambios_gwh" in m:
         s = m["saldo_intercambios_gwh"]
-        txt += f" Saldo con el exterior: {'exportación' if s < 0 else 'importación'} neta de {n(abs(s), 0)} GWh ({n(m['horas_exportando'], 0)} h exportando)."
+        txt += f" Saldo físico con el exterior (tiempo real): {'exportación' if s < 0 else 'importación'} neta de {n(abs(s), 0)} GWh ({n(m['horas_exportando'], 0)} h exportando)"
+        txt += (f"; saldo programado (REData): {n(b_rd['Saldo I. internacionales'], 0)} GWh." if "Saldo I. internacionales" in b_rd else ".")
     if m.get("hueco_txt"):
-        txt += (f" ESIOS no publicó la generación en tiempo real {m['hueco_txt']} ({n(m['hueco_h'], 1)} h): "
+        txt += (" " + frase_hueco(m["hueco_txt"], res.get("ree_tr_ok"), "generación") + f" ({n(m['hueco_h'], 1)} h): "
                 f"las energías de la semana no incluyen {'esos tramos' if ' y ' in m['hueco_txt'] else 'ese tramo'}.")
     fig = d.diapositiva(f"Mix de generación: renovables al {n(m['renovable_pct'], 0)} %", txt,
-                        "Fuente: ESIOS (REE), generación peninsular en tiempo real (5 min, promediada a 15 min). Hidráulica convencional = hidráulica neta − turbinación − consumo de bombeo; "
-                        "la turbinación de bombeo cuenta como no renovable. Cuota sobre la generación, sin intercambios ni baterías.")
+                        "Tiempo real de REE (telemedida y estimación, cada 5 min; ESIOS y, donde falta, demanda.ree.es). El balance oficial (REData) puede diferir, sobre todo en FV; las cuotas y "
+                        "capturas se calculan sobre tiempo real porque es la única serie cuartohoraria. Renovable = eólica + hidráulica convencional (546 − 2079 − 2078) + FV + solar térmica + "
+                        "térmica renovable, cuarto a cuarto, frente a la demanda real del mismo cuarto; sin intercambios, turbinación de bombeo ni baterías.")
     ax = d.eje(fig, caja=[0.07, 0.20, 0.56, 0.53])
     x = np.arange(len(g))
     base = np.zeros(len(g))
@@ -402,12 +421,15 @@ def sec_baterias(d, res):
         return False
     partes = []
     if b:
-        partes.append(f"El parque de baterías peninsular cargó {n(b['mwh_carga'], 0)} MWh y entregó {n(b['mwh_entrega'], 0)} MWh "
-                      f"(rendimiento aparente {n(b['rendimiento'], 0)} %). Cargó de media a {n(b['precio_carga'], 1)} €/MWh y descargó a "
-                      f"{n(b['precio_descarga'], 1)} €/MWh del diario: un spread capturado de {n(b['spread'], 1)} €/MWh.")
+        from .validacion import marca
+
+        partes.append(f"Las baterías con medida propia publicada por REE en tiempo real cargaron {n(b['mwh_carga'], 0)} MWh y entregaron {n(b['mwh_entrega'], 0)} MWh "
+                      f"(rendimiento aparente {n(b['rendimiento'], 0)} %{marca(res, 'baterias')}). Cargaron de media a {n(b['precio_carga'], 1)} €/MWh y descargaron a "
+                      f"{n(b['precio_descarga'], 1)} €/MWh del diario: un spread capturado de {n(b['spread'], 1)} €/MWh. No incluye el almacenamiento hibridado tras el "
+                      "contador de plantas renovables, así que no representa toda la potencia de baterías instalada.")
     fig = d.diapositiva("Qué hicieron las baterías del sistema", " ".join(partes) or None,
-                        "Fuente: ESIOS (REE), almacenamiento en tiempo real (2166 carga, 2167 entrega) y, si está publicado, I3 de REE (almacenamiento generación y consumo). "
-                        "Precios de carga y descarga ponderados por la energía con el precio del diario: es una valoración, no la liquidación.")
+                        "Fuente: ESIOS (REE), almacenamiento en tiempo real (2166 carga, en neto; 2167 entrega), con los huecos completados con demanda.ree.es (consBat, bat), y, si está "
+                        "publicado, I3 de REE. Precios de carga y descarga ponderados por la energía con el precio del diario: es una valoración, no la liquidación.")
     if b:
         ax = d.eje(fig, caja=[0.07, 0.14, 0.53, 0.58])
         pn = b["perfil_neto"]
@@ -435,7 +457,7 @@ def sec_baterias(d, res):
         fig.text(0.945, y, v, fontsize=9.5, fontweight="bold", va="center", ha="right", color=C["coral"] if neg else C["verde"])
         y -= 0.034
     if b:
-        fig.text(0.675, y, "Tiempo real (ESIOS)", fontsize=11, fontweight="bold", color=C["verde"]); y -= 0.04
+        fig.text(0.675, y, "Medida propia en tiempo real (REE)", fontsize=11, fontweight="bold", color=C["verde"]); y -= 0.04
         linea("Energía cargada", f"{n(b['mwh_carga'], 0)} MWh")
         linea("Energía entregada", f"{n(b['mwh_entrega'], 0)} MWh")
         linea("Potencia máx. carga / entrega", f"{n(b['mw_max_carga'], 0)} / {n(b['mw_max_entrega'], 0)} MW")
@@ -516,9 +538,10 @@ def sec_multimercado(d, res):
            f"{n(mm['media'], 0)} €/MW al día, un {n(mm['uplift'], 0)} % más que solo con el diario ({n(mm['media_diario'], 0)} €/MW). Es el margen que deja la "
            f"reoptimización intradiaria: con previsión perfecta y sin límite de liquidez, así que es un techo, no un ingreso esperable.")
     fig = d.diapositiva("Arbitraje: solo diario frente a diario + intradiarios", txt,
-                        "Fuente: OMIE vía ESIOS (precios del diario e IDA1-3, cuartohorarios). Cálculo propio: misma programación dinámica que el techo del diario, comprando al mínimo y "
-                        "vendiendo al máximo de los precios disponibles en cada cuarto. TB k = media de las k horas más caras menos media de las k más baratas de cada día.")
-    ax = d.eje(fig, caja=[0.07, 0.14, 0.56, 0.58])
+                        "Fuente: OMIE vía ESIOS (diario e IDA1-3, 15 min). Misma programación dinámica que el techo del diario, comprando al mínimo y vendiendo al máximo de cada cuarto. "
+                        "TBk = media de los 4k cuartos de hora más caros − media de los 4k más baratos de cada día (entre paréntesis, versión horaria: k horas). El año anterior, con el "
+                        "mismo método (diario cuartohorario desde el 1-oct-2025; antes, horario).")
+    ax = d.eje(fig, caja=[0.07, 0.18, 0.56, 0.54])
     x = np.arange(len(dias))
     ax.bar(x - 0.2, a, 0.38, color=C["verde"], label="Solo diario")
     ax.bar(x + 0.2, b, 0.38, color=C["coral"], label="Diario + IDA1-3")
@@ -534,12 +557,13 @@ def sec_multimercado(d, res):
     fig.text(0.685, 0.69, "Spreads de la semana", fontsize=11.5, fontweight="bold", color=C["verde"])
     y = 0.645
     ant = (res.get("comparativa") or {}).get("anterior") or {}
+    tbh = res.get("tb_h") or {}
     for k in (1, 2, 4):
         fig.text(0.69, y, f"TB{k} (batería de {k} h)", fontsize=9.5, va="center")
-        fig.text(0.94, y, f"{n(tb.get(k), 0)} €/MWh", fontsize=10, fontweight="bold", va="center", ha="right", color=C["verde"])
+        fig.text(0.94, y, f"{n(tb.get(k), 1)} ({n(tbh.get(k), 1)} h) €/MWh", fontsize=9.5, fontweight="bold", va="center", ha="right", color=C["verde"])
         y -= 0.05
     if ant.get("tb4") == ant.get("tb4"):
-        fig.text(0.69, y, f"TB4 misma semana {ant.get('etiqueta', '')[:4]}", fontsize=9, va="center", color=C["gris"])
+        fig.text(0.69, y, f"TB4 misma semana {ant.get('etiqueta', '')[:4]} ({'15 min' if str(ant.get('etiqueta', '')) >= '2025-S40' else 'horario'})", fontsize=9, va="center", color=C["gris"])
         fig.text(0.94, y, f"{n(ant.get('tb4'), 0)} €/MWh", fontsize=9.5, va="center", ha="right", color=C["gris"])
         y -= 0.05
     y -= 0.02
