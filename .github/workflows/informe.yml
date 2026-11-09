@@ -7,14 +7,13 @@ on:
     # Lunes: edición provisional con mercados, balance, mix y baterías (el I3 de REE llega a D+4: el del
     # domingo, el jueves). Martes a sábado: si la semana salió provisional y el I3 ya está completo, se
     # regenera entera; si ya está completa, no hace nada. Si el lunes falla, el martes la genera.
-    # GitHub no garantiza las ejecuciones programadas (el lunes 9-nov-2026 no lanzó la de las 06:17): hay varias
-    # al día como respaldo. Son idempotentes: si la semana ya está publicada, no hacen nada.
+    # GitHub NO lanza los cron de este repositorio (ninguno desde su creación; el lunes 9-nov-2026 no salió el de
+    # las 06:17). Quien lanza el informe a su hora es reloj.yml (cadena de workflow_dispatch, sin depender del cron).
+    # Estos cron quedan solo como respaldo por si GitHub los activa. Todo es idempotente.
     - cron: "17 6 * * 1-6"
     - cron: "43 8 * * 1-6"
     - cron: "29 11 * * 1-6"
     - cron: "11 16 * * 1-6"
-    - cron: "45 14 9 11 *"   # prueba única: lunes 9-nov-2026 a las 15:45 (Madrid)
-    - cron: "0 15 9 11 *"    # prueba única: lunes 9-nov-2026 a las 16:00 (Madrid)
   workflow_dispatch:
     inputs:
       semana:
