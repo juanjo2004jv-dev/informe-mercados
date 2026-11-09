@@ -1,0 +1,64 @@
+name: Reloj (lanza el informe a su hora)
+
+# GitHub no lanza las ejecuciones «schedule» de este repositorio (verificado el 9-nov-2026: ninguna desde su
+# creación, aunque el cron era correcto). Este reloj no depende de ellas: cada ejecución espera hasta la próxima
+# hora objetivo (máx. 5 h 30 min), lanza el informe si toca y se relanza a sí misma con workflow_dispatch
+# (GitHub lo permite con el GITHUB_TOKEN). Si la cadena se cortara, la reanuda cualquier ejecución del informe
+# (paso «Mantener vivo el reloj») o cualquier cron que GitHub llegue a lanzar. El informe es idempotente:
+# lanzarlo de más no rehace nada que ya esté publicado.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 */4 * * *"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: reloj
+  cancel-in-progress: true
+
+jobs:
+  esperar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Calcular la próxima hora objetivo
+        id: plan
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          from datetime import datetime, timedelta, timezone
+          ahora = datetime.now(timezone.utc)
+          HORAS = [(6, 17), (8, 43), (11, 29), (16, 11)]   # UTC, de lunes a sábado (07:17 en Madrid en invierno)
+          EXTRA = ["2026-11-09T15:00"]                     # pruebas puntuales (UTC)
+          cand = []
+          for d in range(4):
+              dia = (ahora + timedelta(days=d)).date()
+              if dia.weekday() <= 5:
+                  cand += [datetime(dia.year, dia.month, dia.day, h, m, tzinfo=timezone.utc) for h, m in HORAS]
+          cand += [datetime.fromisoformat(x).replace(tzinfo=timezone.utc) for x in EXTRA]
+          obj = min(t for t in cand if t > ahora + timedelta(seconds=20))
+          espera = (obj - ahora).total_seconds()
+          LIM = 5 * 3600 + 30 * 60
+          print(f"espera={int(min(espera, LIM))}")
+          print(f"lanza={'si' if espera <= LIM else 'no'}")
+          print(f"objetivo={obj:%Y-%m-%d %H:%M} UTC")
+          PY
+          cat "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Esperar
+        run: sleep ${{ steps.plan.outputs.espera }}
+
+      - name: Lanzar el informe
+        if: steps.plan.outputs.lanza == 'si'
+        run: gh workflow run informe.yml -R "$REPO" && echo "Informe lanzado $(date -u '+%F %H:%M') UTC" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Relanzar el reloj
+        # no si esta ejecución fue cancelada (otra la sustituyó): evita cadenas duplicadas
+        if: success() || failure()
+        run: gh workflow run reloj.yml -R "$REPO"
