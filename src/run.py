@@ -152,6 +152,9 @@ def descargar(cfg, lunes):
         ind = cli._get(f"/indicators/{cfg['series']['demanda_real']['id']}").get("indicator", {})
         desc = re.sub(r"<[^>]+>", " ", ind.get("description") or "")
         desc = re.sub(r"\s+", " ", desc).strip()
+        if not desc:   # el detalle del indicador no trae descripción: se busca en el listado de ESIOS
+            it = next((x for x in cli._get("/indicators").get("indicators", []) if x.get("id") == cfg["series"]["demanda_real"]["id"]), {})
+            desc = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", it.get("description") or "")).strip()
         if "demanda_real" in meta:
             meta["demanda_real"]["descripcion"] = desc or None
             meta["demanda_real"]["nombre_oficial"] = ind.get("name")
