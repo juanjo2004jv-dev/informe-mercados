@@ -113,3 +113,35 @@ balance:
   enlace_balear: {id: 554,  nombre: Enlace balear}
   bat_carga:     {id: 2166, nombre: Baterías · carga}
   bat_entrega:   {id: 2167, nombre: Baterías · entrega}
+
+# ---------- Semáforos de «Señales de la semana» (convenciones de este informe, no estándares) ----------
+semaforos:
+  captura_fv_pct: [70, 85]          # < 70 rojo · 70-85 ámbar · > 85 verde
+  techo_var_pct: 10                 # ± % frente a la media de 4 semanas
+  spread_eur_mwh: [60, 120]         # < 60 rojo · 60-120 ámbar · > 120 verde
+  intradiario_uplift_pct: [8, 20]   # < 8 rojo · 8-20 ámbar · > 20 verde
+  prima_afrr_eur_mwh: [8, 25]       # < 8 rojo · 8-25 ámbar · > 25 verde
+  mape_demanda_pct: [1.5, 3]        # < 1,5 verde · 1,5-3 ámbar · > 3 rojo
+  horas_neg_h: [3, 15]              # < 3 verde · 3-15 ámbar · > 15 rojo
+
+# ---------- Control de calidad automático (src/validacion.py) ----------
+validacion:
+  precio_eur_mwh: 0.01              # ESIOS 600/612-614 frente a OMIE, cuarto a cuarto
+  tiempo_real_pct: 1.0              # ESIOS tiempo real frente a demanda.ree.es (diferencia media / nivel medio)
+  cascada_i3_pct: 0.1               # cierre de la cascada del I3 contra el P48
+  rendimiento_baterias_pct: [70, 95]
+
+# ---------- Cifras oficiales externas (dato ESTÁTICO: se citan, no se recalculan) ----------
+oficiales_operacion_reforzada:
+  - cifra: "3.347 M€"
+    concepto: "Coste total de las restricciones técnicas en 2025; la operación reforzada fue «una parte menor»"
+    fuente: "REE, nota de prensa de 23/07/2026 (ree.es, 2307_NP_RRTT_2026.pdf)"
+    consulta: "2026-11-09"
+  - cifra: "516 M€"
+    concepto: "Coste de la operación reforzada, mayo-diciembre de 2025"
+    fuente: "CNMC con datos de REE (recogido en prensa, roams.es)"
+    consulta: "2026-11-09"
+  - cifra: "275 M€"
+    concepto: "Coste de la operación reforzada, enero-septiembre de 2026"
+    fuente: "CNMC con datos de REE (recogido en prensa, roams.es)"
+    consulta: "2026-11-09"
