@@ -106,7 +106,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
   {% if res.captura.gen_solar_fv %}<div><dt>Solar capturó</dt><dd>{{ res.captura.gen_solar_fv.ratio|n(0) }} <span class="sub">% del precio medio</span></dd><span class="sub">{{ res.captura.gen_solar_fv.precio|n(1) }} €/MWh</span></div>{% endif %}
   {% if res.mix %}<div><dt>Renovables</dt><dd>{{ res.mix.renovable_pct|n(0) }} <span class="sub">% de la generación</span></dd><span class="sub">máx. {{ res.mix.renovable_max|n(0) }} % en un cuarto</span></div>{% endif %}
   {% if res.multimercado %}<div><dt>Techo con intradiarios</dt><dd>{{ res.multimercado.media|n(0) }} <span class="sub">€/MW·día</span></dd><span class="sub">{{ res.multimercado.uplift|n(0,True) }} % sobre solo diario</span></div>{% endif %}
-  {% if res.baterias and res.baterias.spread == res.baterias.spread %}<div><dt>Spread de las baterías</dt><dd>{{ res.baterias.spread|n(0) }} <span class="sub">€/MWh</span></dd><span class="sub">capturado por el parque real</span></div>{% endif %}
+  {% if res.baterias and res.baterias.spread == res.baterias.spread %}<div><dt>Spread de las baterías</dt><dd>{{ res.baterias.spread|n(0) }} <span class="sub">€/MWh</span></dd><span class="sub">baterías con medida en tiempo real</span></div>{% endif %}
 </dl>
 
 {% if pdf_url %}<p class="cta"><a class="pdfbtn" href="{{ pdf_url }}">Descargar el informe completo en PDF{% if npag %} · {{ npag }} páginas{% endif %}</a> <span class="sub" style="color:var(--muted);font-size:13px">{% if res.provisional %}edición provisional: {% if res.i3_anterior %}I3 de la semana anterior, se actualiza solo{% else %}el I3 se añade cuando REE lo publica{% endif %}{% else %}incluye I3 por tecnología, restricciones técnicas y operación reforzada{% endif %}</span></p>{% endif %}
@@ -129,7 +129,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
     <tbody>
     <tr><td>Techo de arbitraje · solo diario (4 h)</td><td>{{ res.bess_dia|n(0) }} €/MW·día</td>{% if cp.anterior %}<td>{{ cp.anterior.bess_4h|n(0) }} €/MW·día</td>{% endif %}<td>Máximo con previsión perfecta en el diario</td></tr>
     {% if mm %}<tr><td>Techo con diario + IDA1-3 (4 h)</td><td>{{ mm.media|n(0) }} €/MW·día <span class="sub">({{ mm.uplift|n(0,True) }} %)</span></td>{% if cp.anterior %}<td>—</td>{% endif %}<td>Reoptimizando con el mejor precio de cada cuarto entre diario e intradiarios</td></tr>{% endif %}
-    {% for k in [1, 2, 4] %}{% if tb.get(k) == tb.get(k) and tb.get(k) is not none %}<tr><td>Spread TB{{ k }}</td><td>{{ tb.get(k)|n(0) }} €/MWh</td>{% if cp.anterior %}<td>{% if k == 4 and cp.anterior.tb4 == cp.anterior.tb4 %}{{ cp.anterior.tb4|n(0) }} €/MWh{% else %}—{% endif %}</td>{% endif %}<td>{% if k == 1 %}Hora más cara menos hora más barata de cada día{% else %}Media de las {{ k }} h más caras menos las {{ k }} más baratas de cada día{% endif %}</td></tr>{% endif %}{% endfor %}
+    {% for k in [1, 2, 4] %}{% if tb.get(k) == tb.get(k) and tb.get(k) is not none %}<tr><td>Spread TB{{ k }}</td><td>{{ tb.get(k)|n(0) }} €/MWh</td>{% if cp.anterior %}<td>{% if k == 4 and cp.anterior.tb4 == cp.anterior.tb4 %}{{ cp.anterior.tb4|n(0) }} €/MWh{% else %}—{% endif %}</td>{% endif %}<td>Media de los {{ 4 * k }} cuartos de hora más caros menos los {{ 4 * k }} más baratos de cada día{% if res.tb_h and res.tb_h.get(k) == res.tb_h.get(k) %} (horario: {{ res.tb_h.get(k)|n(0) }} €/MWh){% endif %}</td></tr>{% endif %}{% endfor %}
     {% if cp.anterior %}<tr><td>Precio medio del diario</td><td>{{ res.precio_medio|n(1) }} €/MWh</td><td>{{ cp.anterior.precio_medio|n(1) }} €/MWh</td><td>Media de los cuartos de hora</td></tr>{% endif %}
     {% if cp.ytd %}<tr><td>Techo acumulado en el año (4 h)</td><td>{{ (cp.ytd/1000)|n(1) }} k€/MW <span class="sub">{{ cp.ytd_semanas }} semanas</span></td>{% if cp.anterior %}<td>{% if cp.ytd_prev %}{{ (cp.ytd_prev/1000)|n(1) }} k€/MW{% else %}—{% endif %}</td>{% endif %}<td>Suma de los techos semanales del año</td></tr>{% endif %}
     </tbody></table></div>
@@ -180,7 +180,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 {% if res.mix %}
 <section id="mix">
   <h2>Mix de generación: las renovables cubrieron el {{ res.mix.renovable_pct|n(1) }} %</h2>
-  <p>Entre el {{ res.mix.renovable_min|n(0) }} % y el {{ res.mix.renovable_max|n(0) }} % según el momento.{% if res.mix.horas_ren_demanda == res.mix.horas_ren_demanda %} Durante {{ res.mix.horas_ren_demanda|n(1) }} h la generación renovable superó a toda la demanda peninsular: horas en las que sobra energía y una batería carga barato.{% endif %}{% if res.mix.saldo_intercambios_gwh is defined %} Saldo con el exterior: {{ 'exportación' if res.mix.saldo_intercambios_gwh < 0 else 'importación' }} neta de {{ res.mix.saldo_intercambios_gwh|abs|n(0) }} GWh.{% endif %}{% if res.mix.hueco_txt %} ESIOS no publicó la generación en tiempo real {{ res.mix.hueco_txt }} ({{ res.mix.hueco_h|n(1) }} h): las energías de la semana no incluyen {{ 'esos tramos' if ' y ' in res.mix.hueco_txt else 'ese tramo' }}.{% endif %}</p>
+  <p>Entre el {{ res.mix.renovable_min|n(0) }} % y el {{ res.mix.renovable_max|n(0) }} % según el momento.{% if res.mix.txt_ren_dem %} {{ res.mix.txt_ren_dem }}{% endif %}{% if res.mix.saldo_intercambios_gwh is defined %} Saldo con el exterior: {{ 'exportación' if res.mix.saldo_intercambios_gwh < 0 else 'importación' }} neta de {{ res.mix.saldo_intercambios_gwh|abs|n(0) }} GWh.{% endif %}{% if res.mix.hueco_txt %} {% if res.ree_tr_ok %}Sin dato de generación ni en ESIOS ni en REE en tiempo real{% else %}ESIOS no publicó la generación (y REE en tiempo real no respondió){% endif %} {{ res.mix.hueco_txt }} ({{ res.mix.hueco_h|n(1) }} h): las energías de la semana no incluyen {{ 'esos tramos' if ' y ' in res.mix.hueco_txt else 'ese tramo' }}.{% endif %}</p>
   <div class="graf"><div id="g_mix"></div></div>
   <div class="tabla-scroll"><table>
     <thead><tr><th>Tecnología</th><th>GWh</th><th>% de la generación</th></tr></thead>
@@ -193,7 +193,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 {% if res.baterias or res.i3_resumen %}
 <section id="baterias-sistema">
   <h2>Qué hicieron las baterías del sistema</h2>
-  {% if res.baterias %}<p>El parque peninsular cargó {{ res.baterias.mwh_carga|n(0) }} MWh y entregó {{ res.baterias.mwh_entrega|n(0) }} MWh (rendimiento aparente {{ res.baterias.rendimiento|n(0) }} %). Cargó de media a {{ res.baterias.precio_carga|n(1) }} €/MWh y descargó a {{ res.baterias.precio_descarga|n(1) }} €/MWh: un spread capturado de {{ res.baterias.spread|n(1) }} €/MWh. Potencia máxima observada: {{ res.baterias.mw_max_entrega|n(0) }} MW entregando y {{ res.baterias.mw_max_carga|n(0) }} MW cargando.</p>
+  {% if res.baterias %}<p>Las baterías con medida propia publicada por REE en tiempo real cargaron {{ res.baterias.mwh_carga|n(0) }} MWh y entregaron {{ res.baterias.mwh_entrega|n(0) }} MWh (rendimiento aparente {{ res.baterias.rendimiento|n(0) }} %). Cargaron de media a {{ res.baterias.precio_carga|n(1) }} €/MWh y descargaron a {{ res.baterias.precio_descarga|n(1) }} €/MWh: un spread capturado de {{ res.baterias.spread|n(1) }} €/MWh. Potencia máxima observada: {{ res.baterias.mw_max_entrega|n(0) }} MW entregando y {{ res.baterias.mw_max_carga|n(0) }} MW cargando.</p>
   <div class="graf"><div id="g_bat"></div></div>{% endif %}
   {% if res.i3_resumen %}{% set g = res.i3_resumen['Almacenamiento generación'] %}{% set c = res.i3_resumen['Almacenamiento consumo'] %}
   <div class="tabla-scroll"><table>
@@ -203,7 +203,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
       <tr><td>Compra (almacenamiento consumo)</td><td>{{ c.p48_mwh|abs|n(0) }} MWh</td><td>{{ c.ingreso|n(0) }} €</td><td>{{ res.i3_resumen.precio_compra|n(1) }}</td></tr>
     </tbody></table></div>
   <p class="nota">En el I3, «almacenamiento consumo» suma más energía que la que cargan las baterías en tiempo real; por eso no se resta compra de venta ni se da un resultado neto.</p>{% else %}<p class="nota">La liquidación por mercado (I3) de las baterías se añade cuando REE la publica, entre el jueves y el viernes.</p>{% endif %}
-  <p class="nota" style="margin-top:14px">Tiempo real: indicadores 2166 (carga) y 2167 (entrega) de ESIOS, valorados al precio del diario. No es la liquidación: esa sale del I3.</p>
+  <p class="nota" style="margin-top:14px">Procedencia: tiempo real de REE (telemedida y estimación), indicadores 2166 (carga, en neto) y 2167 (entrega) de ESIOS, con los huecos de ESIOS completados con demanda.ree.es; valorado al precio del diario. No incluye el almacenamiento hibridado tras el contador de plantas renovables, así que no representa toda la potencia de baterías instalada. No es la liquidación: esa sale del I3.</p>
 </section>
 {% endif %}
 
