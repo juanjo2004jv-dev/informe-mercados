@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       accion:
-        description: "descargar | simular | validar | todo"
+        description: "descargar | simular | validar | informe | todo"
         default: todo
       desde:
         description: "Inicio (AAAA-MM-DD)"
@@ -15,8 +15,12 @@ on:
         description: "Fin exclusivo (AAAA-MM-DD)"
         default: "2026-10-01"
       escenarios:
-        description: "Escenarios (simulador/escenarios/*.yml)"
-        default: "unef_a,unef_b,unef_c"
+        description: "Escenarios (simulador/escenarios/*.yml); vacío = todos"
+        default: ""
+  schedule:
+    # Día 6 de cada mes, 05:37 UTC: mes anterior completo. (En este repositorio GitHub no dispara los
+    # cron con fiabilidad; si no sale, se lanza a mano o desde el reloj.)
+    - cron: "37 5 6 * *"
 
 permissions:
   contents: write
@@ -28,29 +32,47 @@ concurrency:
 jobs:
   simulador:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r simulador/requirements.txt pytest
+      - name: Parámetros de la ejecución
+        id: p
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            ACCION=todo
+            DESDE=$(date -d "$(date +%Y-%m-01) -1 month" +%Y-%m-01)
+            HASTA=$(date +%Y-%m-01)
+            ESC=""
+          else
+            ACCION="${{ inputs.accion }}"; DESDE="${{ inputs.desde }}"; HASTA="${{ inputs.hasta }}"; ESC="${{ inputs.escenarios }}"
+          fi
+          if [ -z "$ESC" ]; then ESC=$(ls simulador/escenarios/*.yml | xargs -n1 basename | sed 's/\.yml$//' | paste -sd, -); fi
+          echo "accion=$ACCION" >> "$GITHUB_OUTPUT"; echo "desde=$DESDE" >> "$GITHUB_OUTPUT"
+          echo "hasta=$HASTA" >> "$GITHUB_OUTPUT"; echo "esc=$ESC" >> "$GITHUB_OUTPUT"
+          echo "Acción $ACCION · $DESDE..$HASTA · $ESC"
       - name: Pruebas del motor
         run: python -m pytest -q simulador/tests
       - name: Descargar datos de ESIOS
-        if: inputs.accion == 'descargar' || inputs.accion == 'todo'
+        if: steps.p.outputs.accion == 'descargar' || steps.p.outputs.accion == 'todo'
         env:
           ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
         run: |
-          D=$(date -d "${{ inputs.desde }}" +%Y-%m)
-          H=$(date -d "${{ inputs.hasta }} -1 day" +%Y-%m)
+          D=$(date -d "${{ steps.p.outputs.desde }}" +%Y-%m)
+          H=$(date -d "${{ steps.p.outputs.hasta }} -1 day" +%Y-%m)
           python -m simulador.run descargar --desde "$D" --hasta "$H"
       - name: Simular escenarios
-        if: inputs.accion == 'simular' || inputs.accion == 'todo'
-        run: python -m simulador.run simular --escenarios "${{ inputs.escenarios }}" --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}"
+        if: steps.p.outputs.accion == 'simular' || steps.p.outputs.accion == 'todo'
+        run: python -m simulador.run simular --escenarios "${{ steps.p.outputs.esc }}" --desde "${{ steps.p.outputs.desde }}" --hasta "${{ steps.p.outputs.hasta }}"
       - name: Validar contra referencias públicas
-        if: inputs.accion != 'descargar'
+        if: steps.p.outputs.accion != 'descargar'
         run: python -m simulador.run validar
+      - name: Informe del simulador (PDF y web)
+        if: steps.p.outputs.accion != 'descargar'
+        run: python -m simulador.run informe
       - name: Guarda de rutas (no tocar nada fuera del simulador)
         run: |
           FUERA=$(git status --porcelain | awk '{print $2}' | grep -vE '^(data/simulador/|docs/simulador/)' || true)
@@ -62,5 +84,5 @@ jobs:
           [ -d data/simulador ] && git add data/simulador
           [ -d docs/simulador ] && git add docs/simulador
           git diff --staged --quiet && exit 0
-          git commit -m "Simulador BESS: ${{ inputs.accion }} ${{ inputs.desde }}..${{ inputs.hasta }}"
+          git commit -m "Simulador BESS: ${{ steps.p.outputs.accion }} ${{ steps.p.outputs.desde }}..${{ steps.p.outputs.hasta }}"
           for i in 1 2 3; do git pull --rebase --autostash && git push && break; sleep 10; done
