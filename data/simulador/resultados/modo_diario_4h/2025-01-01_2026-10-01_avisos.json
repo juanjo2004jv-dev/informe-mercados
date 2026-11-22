@@ -1,0 +1,11 @@
+{
+ "escenario": "Control · solo diario 50 MW/4 h (referencia Modo)",
+ "avisos": [
+  "Continuo sin precio en 964 cuartos: se usa el diario.",
+  "da: 9.56% de cuartos sin dato; se rellenan con el último valor.",
+  "pe_sub: 2.06% de cuartos sin dato; se rellenan con el último valor.",
+  "pe_baj: 2.06% de cuartos sin dato; se rellenan con el último valor.",
+  "banda_sub: 0.16% de cuartos sin dato; se rellenan con el último valor.",
+  "banda_baj: 0.16% de cuartos sin dato; se rellenan con el último valor."
+ ]
+}
