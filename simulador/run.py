@@ -104,6 +104,23 @@ def cmd_validar(a):
             fila["ok"] = "✔" if abs(desv) <= tol else "⚠"
             fallos += abs(desv) > tol
             filas.append(fila)
+    # totales anuales (solo si el año está completo)
+    for esc, anios in ref.get("anual", {}).items():
+        archivos = sorted((RES / esc).glob("*_mensual_eur_mw.csv"))
+        if not archivos:
+            continue
+        nos = pd.concat(pd.read_csv(x, index_col=0) for x in archivos)
+        nos = nos[~nos.index.duplicated(keep="last")]
+        for anio, valor in anios.items():
+            meses = [m for m in nos.index if str(m).startswith(str(anio))]
+            if len(meses) < 12:
+                continue
+            tot = float(nos.loc[meses, "total"].sum())
+            tol_a = ref.get("tolerancia_anual", {}).get(esc, tol)
+            desv = tot / valor - 1
+            filas.append({"escenario": esc, "mes": f"{anio} (año)", "total UNEF": valor, "total nuestro": round(tot),
+                          "desviación total": f"{desv:+.1%}", "ok": "✔" if abs(desv) <= tol_a else "⚠"})
+            fallos += abs(desv) > tol_a
     t = pd.DataFrame(filas)
     RES.mkdir(parents=True, exist_ok=True)
     t.to_csv(RES / "validacion_unef.csv", index=False)
@@ -122,7 +139,12 @@ def main():
     s.add_argument("--desde", required=True)
     s.add_argument("--hasta", required=True)
     sp.add_parser("validar")
+    sp.add_parser("informe")
     a = p.parse_args()
+    if a.cmd == "informe":
+        from . import informe_sim
+        informe_sim.generar()
+        return
     {"descargar": cmd_descargar, "simular": cmd_simular, "validar": cmd_validar}[a.cmd](a)
 
 
