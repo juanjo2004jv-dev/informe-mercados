@@ -102,9 +102,10 @@ def descargar_mes(a, m, cli=None, cfg=None):
             except Exception as e:  # noqa: BLE001 - se registra y se sigue
                 print(f"  {clave} ({ind}): error {e}")
                 s2 = pd.Series(dtype=float)
-            if s2.empty or s2.notna().mean() < 0.999:
+            if s2.empty or s2.notna().mean() < 0.05:
                 # Reintento por semanas: un mes entero a veces vuelve vacío (respuesta truncada o
-                # error transitorio de la API) y por tramos sí llega.
+                # error transitorio de la API) y por tramos sí llega. Solo ante un mes casi vacío:
+                # varias series son dispersas por naturaleza (RRTT, mFRR, IDA3) y no deben reintentarse.
                 s2 = s2.combine_first(_por_tramos(cli, ind, ini, fin)) if not s2.empty else _por_tramos(cli, ind, ini, fin)
             if s2.empty:
                 continue
