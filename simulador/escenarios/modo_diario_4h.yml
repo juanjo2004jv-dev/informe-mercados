@@ -1,0 +1,13 @@
+# Control del motor: solo arbitraje en el diario, 50 MW / 4 h, RTE 88 %, 2 ciclos/día, sin coste de ciclado.
+# Referencia pública: Modo Energy (ME BESS ES 4H, solo diario) ≈ 129 k€/MW·año en 2025.
+nombre: "Control · solo diario 50 MW/4 h (referencia Modo)"
+activo:
+  p_bess_mw: 50
+  e_bess_mwh: 200
+mercados:
+  afrr_banda: false
+  afrr_activacion: false
+  mfrr: false
+  intradiario: false
+  coste_ciclado_eur_mwh: 0.0
+normalizar_por: bess
