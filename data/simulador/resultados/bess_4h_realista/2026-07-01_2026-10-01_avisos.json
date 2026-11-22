@@ -1,0 +1,8 @@
+{
+ "escenario": "BESS 50 MW/4 h · realista (con profundidad de mercado)",
+ "avisos": [
+  "Continuo sin precio en 96 cuartos: se usa el diario.",
+  "pe_sub: 0.71% de cuartos sin dato; se rellenan con el último valor.",
+  "pe_baj: 0.71% de cuartos sin dato; se rellenan con el último valor."
+ ]
+}
