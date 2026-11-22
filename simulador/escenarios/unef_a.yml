@@ -1,0 +1,10 @@
+# Réplica del escenario A del UNEF BESS Index: FV 50 MW + BESS 50 MW / 4 h, SIN carga desde red
+nombre: "A · FV 50 MW + BESS 50 MW/4 h sin carga de red"
+activo:
+  p_bess_mw: 50
+  e_bess_mwh: 200
+  p_poi_mw: 50
+  p_poi_import_mw: 0
+  fv_mwp: 50
+  carga_desde_red: false
+normalizar_por: poi
