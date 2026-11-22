@@ -57,10 +57,20 @@ def cmd_descargar(a):
 
 def cmd_simular(a):
     df = datos.leer(a.desde, a.hasta)
+    errores = []
     for nombre in a.escenarios.split(","):
         cfg = escenario(nombre)
         d2, avisos = datos.completar(df, cfg)
-        res, det = motor.simular(d2, cfg["activo"], cfg)
+        try:
+            res, det = motor.simular(d2, cfg["activo"], cfg)
+        except Exception as e:   # un escenario que falla no detiene a los demás
+            errores.append(f"{nombre}: {e}")
+            print(f"ERROR en {nombre}: {e}", flush=True)
+            continue
+        n_ida = int(res["ida_fallidas"].sum()) if "ida_fallidas" in res else 0
+        if n_ida:
+            avisos.append(f"Subastas intradiarias sin reoptimizar por infactibilidad numérica: {n_ida} "
+                          f"(se mantiene el programa previo).")
         norm = cfg["activo"]["p_poi_mw"] if cfg["normalizar_por"] == "poi" else cfg["activo"]["p_bess_mw"]
         res.index = pd.to_datetime(res.index)
         mens = res.groupby(res.index.to_period("M")).sum(numeric_only=True)
@@ -78,6 +88,9 @@ def cmd_simular(a):
             json.dump({"escenario": cfg.get("nombre", nombre), "avisos": avisos}, f, ensure_ascii=False, indent=1)
         resumen(f"### {cfg.get('nombre', nombre)} (€/MW)\n\n" + eur.round(0).to_markdown()
                 + ("\n\nAvisos: " + " · ".join(avisos) if avisos else ""))
+    if errores:
+        resumen("### Escenarios con error\n\n" + "\n".join(f"- {x}" for x in errores))
+        raise SystemExit(1)
 
 
 def cmd_validar(a):
