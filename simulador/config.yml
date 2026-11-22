@@ -47,6 +47,7 @@ activo:
   eta_descarga: 0.938
   ciclos_max_dia: 2.0    # SUPUESTO: igual que Modo (ME vBESS ES)
   soc_inicial: 0.0       # fracción de E a las 00:00 (Modo: 0)
+  soc_continuo: false    # true: el SoC final de un día es el inicial del siguiente
   fv_mwp: 0              # potencia FV (MWp DC); 0 = stand-alone
   fv_ratio_dc_ac: 1.0    # MWp / MW inversor
   carga_desde_red: true
@@ -59,9 +60,10 @@ mercados:
   afrr_banda: true
   afrr_activacion: true
   mfrr: true
-  intradiario: true      # reoptimización con IDA (etapa 2)
+  intradiario: true      # etapa 2: IDA1, IDA2 e IDA3 en secuencia, cada una en los cuartos que cubre
   rrtt_fase2: false      # aún no (UNEF no lo incluye)
-  banda_horaria: true    # la banda se asigna por hora: igual en los 4 cuartos
+  banda_horaria: auto    # auto: horaria solo si el precio de banda no cambia dentro de la hora
+                         # (VERIFICADO: en jul-sep 2026 cambia en el 93 % de las horas -> cuartohoraria)
   tau_afrr_h: 0.25       # horizonte de entrega que debe cubrir el SoC (Modo)
   coste_ciclado_eur_mwh: 4.0   # UNEF: diferencial mínimo entre mercados
   ivpee: 0.0             # 0,07 = 7 % sobre ventas (desactivado, igual que Modo)
