@@ -8,3 +8,7 @@ activo:
   fv_mwp: 0
   carga_desde_red: true
 normalizar_por: bess
+# UNEF se comporta como precio-aceptante en la banda aFRR (sin tope de profundidad): verificado al
+# replicar jul-sep 2026 (con el tope de Modo la banda sale al 35-45 % de la de UNEF).
+profundidad:
+  afrr_banda: {activa: false}
