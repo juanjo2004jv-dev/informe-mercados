@@ -1,0 +1,10 @@
+# Réplica del escenario C del UNEF BESS Index: BESS stand-alone 50 MW / 4 h
+nombre: "C · BESS stand-alone 50 MW/4 h"
+activo:
+  p_bess_mw: 50
+  e_bess_mwh: 200
+  p_poi_mw: 50
+  p_poi_import_mw: 50
+  fv_mwp: 0
+  carga_desde_red: true
+normalizar_por: bess
