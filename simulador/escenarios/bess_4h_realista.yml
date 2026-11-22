@@ -1,0 +1,11 @@
+# BESS stand-alone 50 MW / 4 h con supuestos realistas propios: profundidad de mercado (Modo v0.5)
+# en banda aFRR y mFRR. Sirve de contraste con la réplica de UNEF (precio-aceptante en la banda).
+nombre: "BESS 50 MW/4 h · realista (con profundidad de mercado)"
+activo:
+  p_bess_mw: 50
+  e_bess_mwh: 200
+  p_poi_mw: 50
+  p_poi_import_mw: 50
+  fv_mwp: 0
+  carga_desde_red: true
+normalizar_por: bess
