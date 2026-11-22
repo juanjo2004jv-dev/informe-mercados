@@ -77,6 +77,7 @@ def cmd_simular(a):
         eur = mens[[c for c in LINEAS + ["coste_ciclado", "ivpee"] if c in mens]] / norm
         eur["total"] = eur[[c for c in LINEAS if c in eur]].sum(axis=1)
         eur["ciclos_dia"] = mens["ciclos"] / res.groupby(res.index.to_period("M")).size()
+        eur["dias"] = res.groupby(res.index.to_period("M")).size()
         eur["apuntamiento"] = mens["ingreso_descarga"] / mens["mwh_descarga"].where(mens["mwh_descarga"] > 0)
         out = RES / nombre
         out.mkdir(parents=True, exist_ok=True)
@@ -127,6 +128,13 @@ def cmd_validar(a):
         for anio, valor in anios.items():
             meses = [m for m in nos.index if str(m).startswith(str(anio))]
             if len(meses) < 12:
+                continue
+            dias_anio = 366 if pd.Timestamp(year=int(anio), month=12, day=31).dayofyear == 366 else 365
+            if "dias" in nos and nos.loc[meses, "dias"].sum() < dias_anio:
+                filas.append({"escenario": esc, "mes": f"{anio} (año)", "total UNEF": valor,
+                              "total nuestro": None,
+                              "desviación total": f"incompleto ({int(nos.loc[meses, 'dias'].sum())} días)",
+                              "ok": "⚠"})
                 continue
             tot = float(nos.loc[meses, "total"].sum())
             tol_a = ref.get("tolerancia_anual", {}).get(esc, tol)
