@@ -198,15 +198,22 @@ def simular_dia(d, a, cfg, e0=None):
     s1 = _despacho(d, a, m, pda, e0=e0)
     # Etapa 2: cada subasta intradiaria reoptimiza solo los cuartos que cubre (IDA1 y IDA2 todo el día,
     # IDA3 desde las 12:00), con la banda fijada y lo anterior como punto de partida.
-    s2, ingreso_id = s1, 0.0
+    s2, ingreso_id, ida_fallidas = s1, 0.0, 0
     if m.get("intradiario", True):
         for k in ("ida1", "ida2", "ida3"):
             p = d[k].values
             cubre = ~np.isnan(p)
             if not cubre.any():
                 continue
-            nuevo = _despacho(d, a, m, np.where(cubre, p, 0.0), bu_fijo=s1["bu"], bd_fijo=s1["bd"],
-                              fijo=(~cubre, s2), e0=e0)
+            try:
+                nuevo = _despacho(d, a, m, np.where(cubre, p, 0.0), bu_fijo=s1["bu"], bd_fijo=s1["bd"],
+                                  fijo=(~cubre, s2), e0=e0)
+            except RuntimeError:
+                # Con lo ya casado fijo, la reoptimización puede quedar infactible por tolerancias
+                # numéricas en el límite de SoC o de ciclos: se mantiene el programa previo (sin
+                # operación en esa subasta) y se contabiliza.
+                ida_fallidas += 1
+                continue
             dn = (nuevo["pvx"] + nuevo["dis"] - nuevo["cg"]) - (s2["pvx"] + s2["dis"] - s2["cg"])
             ingreso_id += float(np.nansum(np.where(cubre, p, 0.0) * dn) * DT)
             s2 = nuevo
@@ -248,6 +255,7 @@ def simular_dia(d, a, cfg, e0=None):
         lineas["ivpee"] = -iv * float(ventas)
     E = a["e_bess_mwh"]
     met = {
+        "ida_fallidas": ida_fallidas,
         "mwh_descarga": descarga,
         "ciclos": descarga / ed / E if E else 0.0,
         "mwh_fv": float(np.sum(d["fv"].values) * DT),
