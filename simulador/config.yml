@@ -65,14 +65,15 @@ mercados:
   tau_afrr_h: 0.25       # horizonte de entrega que debe cubrir el SoC (Modo)
   coste_ciclado_eur_mwh: 4.0   # UNEF: diferencial mínimo entre mercados
   ivpee: 0.0             # 0,07 = 7 % sobre ventas (desactivado, igual que Modo)
-  reposicion: continuo   # la energía activada se repone en el continuo en el mismo cuarto
+  reposicion: continuo   # la energía activada se repone en el continuo
+  reposicion_horizonte_h: 2   # SUPUESTO: al precio medio del continuo de las 2 h siguientes
 
 # Profundidad de mercado (fórmula pública de Modo, v0.5): P_eff = T(1+ln(P/T)) si P > T;
-# tope_t = min(P_eff * V_t / D, techo * P)
+# tope_t = min(P_eff * V_t / D, techo * P). activa: false = precio-aceptante (lo que reproduce a UNEF
+# en la banda aFRR, verificado en jul-sep 2026).
 profundidad:
-  activa: true
-  afrr_banda: {D_sub: 2180, D_baj: 2430, umbral: 0.01, techo: 0.30}
-  mfrr:       {D_sub: 1650, D_baj: 825,  umbral: 0.002, techo: 1.0}
+  afrr_banda: {activa: true, D_sub: 2180, D_baj: 2430, umbral: 0.01, techo: 0.30}
+  mfrr:       {activa: true, D_sub: 1650, D_baj: 825,  umbral: 0.002, techo: 1.0}
 
 # Normalización de resultados
 normalizar_por: bess     # bess | poi
