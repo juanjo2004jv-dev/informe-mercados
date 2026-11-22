@@ -1,0 +1,66 @@
+name: Simulador BESS
+
+# Aislado del informe semanal: solo escribe en data/simulador/ y docs/simulador/.
+# Comparte el grupo de concurrencia "informe" para no chocar con sus commits.
+on:
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: "descargar | simular | validar | todo"
+        default: todo
+      desde:
+        description: "Inicio (AAAA-MM-DD)"
+        default: "2026-07-01"
+      hasta:
+        description: "Fin exclusivo (AAAA-MM-DD)"
+        default: "2026-10-01"
+      escenarios:
+        description: "Escenarios (simulador/escenarios/*.yml)"
+        default: "unef_a,unef_b,unef_c"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: informe
+  cancel-in-progress: false
+
+jobs:
+  simulador:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r simulador/requirements.txt pytest
+      - name: Pruebas del motor
+        run: python -m pytest -q simulador/tests
+      - name: Descargar datos de ESIOS
+        if: inputs.accion == 'descargar' || inputs.accion == 'todo'
+        env:
+          ESIOS_TOKEN: ${{ secrets.ESIOS_TOKEN }}
+        run: |
+          D=$(date -d "${{ inputs.desde }}" +%Y-%m)
+          H=$(date -d "${{ inputs.hasta }} -1 day" +%Y-%m)
+          python -m simulador.run descargar --desde "$D" --hasta "$H"
+      - name: Simular escenarios
+        if: inputs.accion == 'simular' || inputs.accion == 'todo'
+        run: python -m simulador.run simular --escenarios "${{ inputs.escenarios }}" --desde "${{ inputs.desde }}" --hasta "${{ inputs.hasta }}"
+      - name: Validar contra referencias públicas
+        if: inputs.accion != 'descargar'
+        run: python -m simulador.run validar
+      - name: Guarda de rutas (no tocar nada fuera del simulador)
+        run: |
+          FUERA=$(git status --porcelain | awk '{print $2}' | grep -vE '^(data/simulador/|docs/simulador/)' || true)
+          if [ -n "$FUERA" ]; then echo "::error::El simulador ha modificado rutas ajenas: $FUERA"; exit 1; fi
+      - name: Guardar resultados
+        run: |
+          git config user.name "simulador-bot"
+          git config user.email "simulador-bot@users.noreply.github.com"
+          [ -d data/simulador ] && git add data/simulador
+          [ -d docs/simulador ] && git add docs/simulador
+          git diff --staged --quiet && exit 0
+          git commit -m "Simulador BESS: ${{ inputs.accion }} ${{ inputs.desde }}..${{ inputs.hasta }}"
+          for i in 1 2 3; do git pull --rebase --autostash && git push && break; sleep 10; done
