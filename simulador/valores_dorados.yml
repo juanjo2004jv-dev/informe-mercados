@@ -20,3 +20,11 @@ unef:
     2026-08: {total: 40044, diario_bess: 20852, diario_fv: 11105, afrr_banda: 5129, afrr_activacion: 4658, intradiario: 422, mfrr: -638, reposicion: -1987, gdo_derivado: 503}
     2026-09: {total: 42135, diario_bess: 25185, diario_fv: 8938, afrr_banda: 6028, afrr_activacion: 170, intradiario: 569, mfrr: 1569, reposicion: -691, gdo_derivado: 367}
 tolerancia_total: 0.10
+# Totales anuales (€/MW·año). UNEF: serie histórica del acta (2025). Modo: metodología ME vBESS ES v0.5,
+# validación del sub-índice de diario 4 h (≈ 129 k€/MW en 2025). Tolerancias propias de cada referencia.
+anual:
+  unef_a: {2025: 231893}
+  unef_b: {2025: 296836}
+  unef_c: {2025: 216788}
+  modo_diario_4h: {2025: 129000}
+tolerancia_anual: {unef_a: 0.15, unef_b: 0.15, unef_c: 0.15, modo_diario_4h: 0.08}
