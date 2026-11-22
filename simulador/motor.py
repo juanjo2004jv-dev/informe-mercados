@@ -4,7 +4,8 @@ Secuencia por día (hora local, 92-100 cuartos):
   Etapa 1 · Diario: diario + banda aFRR, previsión perfecta del día (como Modo, ME vBESS ES v0.5).
   Etapa 2 · Intradiario: reoptimiza el programa físico contra el IDA con la banda fijada.
   Etapa 3 · Tiempo real: activaciones aFRR (banda × ratio activada/asignada del sistema), mFRR con la
-            potencia libre y tope de profundidad de mercado, y reposición del SoC en el continuo.
+            potencia libre y tope de profundidad de mercado, y reposición del SoC en el continuo al precio
+            medio de las horas siguientes.
 Todas las reglas que no están verificadas se marcan SUPUESTO en config.yml y en el informe.
 """
 import math
@@ -145,17 +146,26 @@ def preparar(df, a, cfg):
     d["ratio_baj"] = (d["act_baj"] / d["banda_baj"].where(d["banda_baj"] > 0)).clip(0, 1).fillna(0)
     P = a["p_bess_mw"]
     pr = cfg["profundidad"]
-    if pr["activa"]:
-        fb, fm = pr["afrr_banda"], pr["mfrr"]
+    fb, fm = pr["afrr_banda"], pr["mfrr"]
+    if fb.get("activa", True):
         pe_u, pe_d = p_eff(P, fb["D_sub"], fb["umbral"]), p_eff(P, fb["D_baj"], fb["umbral"])
         d["cap_bu"] = np.minimum(pe_u * d["banda_sub"].fillna(0) / fb["D_sub"], fb["techo"] * P)
         d["cap_bd"] = np.minimum(pe_d * d["banda_baj"].fillna(0) / fb["D_baj"], fb["techo"] * P)
+    else:  # precio-aceptante: solo limita la banda total asignada al sistema
+        d["cap_bu"] = np.minimum(d["banda_sub"].fillna(0), P)
+        d["cap_bd"] = np.minimum(d["banda_baj"].fillna(0), P)
+    if fm.get("activa", True):
         pm_u, pm_d = p_eff(P, fm["D_sub"], fm["umbral"]), p_eff(P, fm["D_baj"], fm["umbral"])
         d["cap_mu"] = np.minimum(pm_u * d["m_sub"].abs() / fm["D_sub"], fm["techo"] * P)
         d["cap_md"] = np.minimum(pm_d * d["m_baj"].abs() / fm["D_baj"], fm["techo"] * P)
     else:
-        for c in ("cap_bu", "cap_bd", "cap_mu", "cap_md"):
-            d[c] = P
+        d["cap_mu"] = np.minimum(d["m_sub"].abs(), P)
+        d["cap_md"] = np.minimum(d["m_baj"].abs(), P)
+    # Precio de reposición del SoC: media del continuo en las próximas h horas (la energía activada se
+    # recompra o revende después, no en el mismo cuarto). Al final del periodo, el propio cuarto.
+    n = max(int(round(cfg["mercados"].get("reposicion_horizonte_h", 2) / DT)), 1)
+    fut = d["cont"][::-1].rolling(n, min_periods=1).mean()[::-1].shift(-1)
+    d["p_rep"] = fut.fillna(d["cont"])
     d["p_id"] = d["ida1"].fillna(d["ida2"]).fillna(d["ida3"]).fillna(d["da"])
     return d
 
@@ -179,14 +189,14 @@ def simular_dia(d, a, cfg):
     # etapa 3 · activaciones
     aU = bu * d["ratio_sub"].values if m["afrr_activacion"] else 0 * bu
     aD = bd * d["ratio_baj"].values if m["afrr_activacion"] else 0 * bd
-    pc = d["cont"].values
+    pc = d["p_rep"].values
     pm = d["pm"].fillna(d["cont"]).values
     if m["mfrr"]:
         h_up = np.maximum(0, np.minimum(P - s2["dis"] - bu, POI - s2["pvx"] - s2["dis"] - bu))
         dn_red = (PIMP - s2["cg"] - bd) if a["carga_desde_red"] else (s2["pvx"] + s2["dis"] - bd)
         h_dn = np.maximum(0, np.minimum(P - s2["cg"] - s2["cpv"] - bd, dn_red))
         mU = np.where(pm > pc / rt + kappa, np.minimum(h_up, d["cap_mu"].values), 0.0)
-        mD = np.where(pm < pc * rt, np.minimum(h_dn, d["cap_md"].values), 0.0)
+        mD = np.where(pm < pc * rt - kappa, np.minimum(h_dn, d["cap_md"].values), 0.0)
         mU = np.where(d["m_sub"].abs().values > 0, mU, 0.0)
         mD = np.where(d["m_baj"].abs().values > 0, mD, 0.0)
     else:
