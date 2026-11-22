@@ -1,0 +1,78 @@
+# Simulador de escenarios BESS · parámetros por defecto
+# Cada escenario (simulador/escenarios/*.yml) puede sobrescribir cualquier clave.
+# Todo lo que no está verificado lleva la marca SUPUESTO.
+
+# ---------------------------------------------------------------------------
+# Series de ESIOS (IDs verificados en data/indicadores_esios.csv)
+# unidad: precio (€/MWh), banda_precio (€/MW por hora), mw (potencia o energía/periodo -> MW medios)
+# respaldo: ID alternativo si el principal no tiene dato ese periodo
+# ---------------------------------------------------------------------------
+series:
+  da:          {id: 600,  unidad: precio, nombre: Precio mercado diario}
+  ida1:        {id: 612,  unidad: precio, nombre: Precio IDA1}
+  ida2:        {id: 613,  unidad: precio, nombre: Precio IDA2}
+  ida3:        {id: 614,  unidad: precio, nombre: Precio IDA3}
+  cont:        {id: 1727, unidad: precio, nombre: Precio de referencia del continuo}
+  cont_mw:     {id: 1442, unidad: mw,     nombre: Energía asignada en el continuo}
+  bp_sub:      {id: 2130, respaldo: 10388, unidad: banda_precio, nombre: Precio banda aFRR a subir}
+  bp_baj:      {id: 634,  respaldo: 10463, unidad: banda_precio, nombre: Precio banda aFRR a bajar}
+  banda_sub:   {id: 632,  unidad: mw, nombre: Banda aFRR asignada a subir}
+  banda_baj:   {id: 633,  unidad: mw, nombre: Banda aFRR asignada a bajar}
+  req_sub:     {id: 630,  unidad: mw, nombre: Banda aFRR requerida a subir}
+  req_baj:     {id: 631,  unidad: mw, nombre: Banda aFRR requerida a bajar}
+  coste_sub:   {id: 712,  unidad: precio, nombre: Coste banda aFRR a subir (para estimar huecos)}
+  coste_baj:   {id: 2127, unidad: precio, nombre: Coste banda aFRR a bajar (para estimar huecos)}
+  pe_sub:      {id: 682,  unidad: precio, nombre: Precio energía aFRR a subir}
+  pe_baj:      {id: 683,  unidad: precio, nombre: Precio energía aFRR a bajar}
+  act_sub:     {id: 680,  unidad: mw, nombre: Energía aFRR activada a subir}
+  act_baj:     {id: 681,  unidad: mw, nombre: Energía aFRR activada a bajar}
+  pm:          {id: 2197, unidad: precio, nombre: Precio energías de balance mFRR}
+  m_sub:       {id: 10395, respaldo: 675, unidad: mw, nombre: mFRR asignada a subir}
+  m_baj:       {id: 10394, respaldo: 674, unidad: mw, nombre: mFRR asignada a bajar}
+  rt2_p_sub:   {id: 707, unidad: precio, nombre: Precio restricciones fase II a subir}
+  rt2_p_baj:   {id: 708, unidad: precio, nombre: Precio restricciones fase II a bajar}
+  rt2_e_sub:   {id: 703, unidad: mw, nombre: Energía restricciones fase II a subir}
+  rt2_e_baj:   {id: 704, unidad: mw, nombre: Energía restricciones fase II a bajar}
+  fv_nac:      {id: 1295, unidad: mw, nombre: Generación solar FV peninsular (perfil)}
+
+# ---------------------------------------------------------------------------
+# Activo por defecto (se sobrescribe en cada escenario)
+# ---------------------------------------------------------------------------
+activo:
+  p_bess_mw: 50          # potencia del BESS en el punto de conexión
+  e_bess_mwh: 200        # energía útil
+  p_poi_mw: 50           # capacidad de acceso (inyección)
+  p_poi_import_mw: 50    # capacidad de consumo desde red
+  eta_carga: 0.938       # SUPUESTO: sqrt(0,88); RTE 88 % AC-AC como Modo
+  eta_descarga: 0.938
+  ciclos_max_dia: 2.0    # SUPUESTO: igual que Modo (ME vBESS ES)
+  soc_inicial: 0.0       # fracción de E a las 00:00 (Modo: 0)
+  fv_mwp: 0              # potencia FV (MWp DC); 0 = stand-alone
+  fv_ratio_dc_ac: 1.0    # MWp / MW inversor
+  carga_desde_red: true
+
+# ---------------------------------------------------------------------------
+# Mercados y reglas
+# ---------------------------------------------------------------------------
+mercados:
+  diario: true
+  afrr_banda: true
+  afrr_activacion: true
+  mfrr: true
+  intradiario: true      # reoptimización con IDA (etapa 2)
+  rrtt_fase2: false      # aún no (UNEF no lo incluye)
+  banda_horaria: true    # la banda se asigna por hora: igual en los 4 cuartos
+  tau_afrr_h: 0.25       # horizonte de entrega que debe cubrir el SoC (Modo)
+  coste_ciclado_eur_mwh: 4.0   # UNEF: diferencial mínimo entre mercados
+  ivpee: 0.0             # 0,07 = 7 % sobre ventas (desactivado, igual que Modo)
+  reposicion: continuo   # la energía activada se repone en el continuo en el mismo cuarto
+
+# Profundidad de mercado (fórmula pública de Modo, v0.5): P_eff = T(1+ln(P/T)) si P > T;
+# tope_t = min(P_eff * V_t / D, techo * P)
+profundidad:
+  activa: true
+  afrr_banda: {D_sub: 2180, D_baj: 2430, umbral: 0.01, techo: 0.30}
+  mfrr:       {D_sub: 1650, D_baj: 825,  umbral: 0.002, techo: 1.0}
+
+# Normalización de resultados
+normalizar_por: bess     # bess | poi
