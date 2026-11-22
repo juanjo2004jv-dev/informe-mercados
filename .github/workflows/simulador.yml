@@ -32,6 +32,8 @@ concurrency:
 jobs:
   simulador:
     runs-on: ubuntu-24.04
+    env:
+      PYTHONUNBUFFERED: "1"
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
@@ -74,10 +76,12 @@ jobs:
         if: steps.p.outputs.accion != 'descargar'
         run: python -m simulador.run informe
       - name: Guarda de rutas (no tocar nada fuera del simulador)
+        if: ${{ !cancelled() }}
         run: |
           FUERA=$(git status --porcelain | awk '{print $2}' | grep -vE '^(data/simulador/|docs/simulador/)' || true)
           if [ -n "$FUERA" ]; then echo "::error::El simulador ha modificado rutas ajenas: $FUERA"; exit 1; fi
       - name: Guardar resultados
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "simulador-bot"
           git config user.email "simulador-bot@users.noreply.github.com"
