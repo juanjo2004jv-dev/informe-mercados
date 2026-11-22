@@ -98,6 +98,8 @@ def _tabla(fig, df, caja, ancho_col=None, fs=10):
         cel.set_edgecolor(C["linea"])
         if r == 0:
             cel.set_facecolor(C["verde"])
+            if any("\n" in str(x) for x in df.columns):
+                cel.set_height(cel.get_height() * 1.9)
             cel.get_text().set_color("white")
             cel.get_text().set_fontweight("bold")
         else:
@@ -241,10 +243,10 @@ def generar():
         dias = sum(pd.Period(x).days_in_month for x in m.index)
         filas.append([nombre, n(m["total"].sum()), n(m["total"].sum() / dias * 365), n(m["ciclos_dia"].mean(), 2),
                       n(m["apuntamiento"].mean(), 0)])
-    tab = pd.DataFrame(filas, columns=["Escenario", "Total periodo (€/MW)", "Anualizado (€/MW·año)", "Ciclos/día",
-                                       "Precio medio de descarga (€/MWh)"])
+    tab = pd.DataFrame(filas, columns=["Escenario", "Total periodo\n(€/MW)", "Anualizado\n(€/MW·año)", "Ciclos/día",
+                                       "Precio medio\ndescarga (€/MWh)"])
     fig = dk.hoja("Resumen por escenario", f"Ingreso neto de mercado por MW (POI en híbridos, BESS en stand-alone), {periodo}.")
-    _tabla(fig, tab, (0.06, 0.25, 0.88, 0.5), ancho_col=[0.40, 0.15, 0.15, 0.12, 0.18], fs=10.5)
+    _tabla(fig, tab, (0.06, 0.25, 0.88, 0.5), ancho_col=[0.44, 0.14, 0.15, 0.11, 0.16], fs=10.5)
     dk.guardar(fig, SAL / "resumen.png")
     imgs = []
     for clave, (nombre, m) in res.items():
