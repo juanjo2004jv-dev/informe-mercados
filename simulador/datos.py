@@ -101,6 +101,12 @@ def descargar_mes(a, m, cli=None, cfg=None):
                 s2 = cli.serie(ind, ini, fin)
             except Exception as e:  # noqa: BLE001 - se registra y se sigue
                 print(f"  {clave} ({ind}): error {e}")
+                s2 = pd.Series(dtype=float)
+            if s2.empty or s2.notna().mean() < 0.999:
+                # Reintento por semanas: un mes entero a veces vuelve vacío (respuesta truncada o
+                # error transitorio de la API) y por tramos sí llega.
+                s2 = s2.combine_first(_por_tramos(cli, ind, ini, fin)) if not s2.empty else _por_tramos(cli, ind, ini, fin)
+            if s2.empty:
                 continue
             s = s2 if s.empty else s.combine_first(s2)
             if not s.empty and s.notna().mean() > 0.999:
@@ -112,8 +118,39 @@ def descargar_mes(a, m, cli=None, cfg=None):
     df = pd.DataFrame({k: v.reindex(idx) if len(v) else np.nan for k, v in cols.items()}, index=idx)
     df.index.name = "utc"
     ALMACEN.mkdir(parents=True, exist_ok=True)
-    df.to_csv(ALMACEN / f"{a}-{m:02d}.csv.gz", float_format="%.4f")
+    f = ALMACEN / f"{a}-{m:02d}.csv.gz"
+    if f.exists():
+        # Nunca se empeora lo almacenado: lo nuevo manda y lo que falte se completa con lo anterior.
+        prev = pd.read_csv(f, index_col=0, parse_dates=True)
+        prev.index = pd.to_datetime(prev.index, utc=True)
+        prev = prev.reindex(idx)
+        for c in df.columns:
+            if c in prev:
+                antes = prev[c].notna().mean()
+                df[c] = df[c].combine_first(prev[c])
+                if df[c].notna().mean() > cob[c] + 1e-9:
+                    print(f"  {c:10s}: se conserva lo almacenado donde la descarga nueva no trae dato "
+                          f"({cob[c]:.1%} -> {df[c].notna().mean():.1%}; antes {antes:.1%})")
+                cob[c] = float(df[c].notna().mean())
+    df.to_csv(f, float_format="%.4f")
     return cob
+
+
+def _por_tramos(cli, ind, ini, fin, dias=7):
+    partes, t = [], ini
+    while t < fin:
+        t2 = min(t + pd.Timedelta(days=dias), fin)
+        try:
+            p = cli.serie(ind, t, t2)
+            if not p.empty:
+                partes.append(p)
+        except Exception as e:  # noqa: BLE001
+            print(f"    tramo {t.date()} ({ind}): error {e}")
+        t = t2
+    if not partes:
+        return pd.Series(dtype=float)
+    s = pd.concat(partes)
+    return s[~s.index.duplicated(keep="first")].sort_index()
 
 
 def leer(ini, fin):
@@ -134,6 +171,18 @@ def completar(df, cfg):
     """Rellena huecos con reglas documentadas y devuelve (df, avisos)."""
     av = []
     df = df.copy()
+    # Coherencia del precio de banda publicado con coste ÷ banda requerida. Detectado el 22-04-2025:
+    # el indicador de respaldo devolvió el coste (€/h) en lugar del precio (€/MW·h), 1000 veces mayor.
+    for d, coste, req in (("sub", "coste_sub", "req_sub"), ("baj", "coste_baj", "req_baj")):
+        col = f"bp_{d}"
+        if coste in df and req in df:
+            est = df[coste] / df[req].where(df[req] > 0)
+            rel = (df[col] - est).abs() / est.clip(lower=1.0)
+            malo = (rel > 0.5) & (df[col] > 20) & est.notna()
+            if malo.any():
+                df.loc[malo, col] = est[malo]
+                av.append(f"Precio de banda aFRR a {'subir' if d == 'sub' else 'bajar'} incoherente con coste ÷ banda requerida en "
+                          f"{int(malo.sum())} cuartos: se sustituye por la estimación.")
     # Banda aFRR sin precio publicado: precio = coste / banda requerida (método del informe semanal,
     # validado con error medio < 1 %). Coste en €/h -> €/MW·h.
     for d, coste, req in (("sub", "coste_sub", "req_sub"), ("baj", "coste_baj", "req_baj")):
@@ -144,7 +193,7 @@ def completar(df, cfg):
             df.loc[hueco, col] = est[hueco]
             n = int((hueco & df[col].notna()).sum())
             if n:
-                av.append(f"Precio de banda aFRR a {d}ir estimado en {n} cuartos (coste ÷ banda requerida).")
+                av.append(f"Precio de banda aFRR a {'subir' if d == 'sub' else 'bajar'} estimado en {n} cuartos (coste ÷ banda requerida).")
     # Precio de referencia del continuo ausente: se usa el del diario (aviso).
     if df["cont"].isna().any():
         n = int(df["cont"].isna().sum())
@@ -153,6 +202,15 @@ def completar(df, cfg):
     for c in ("act_sub", "act_baj", "m_sub", "m_baj", "rt2_e_sub", "rt2_e_baj"):
         if c in df:
             df[c] = df[c].fillna(0.0)
+    # Días sin precio del diario (más de 4 cuartos vacíos): no se simulan. Rellenar un mes entero con
+    # el último valor fabricaría ingresos; mejor excluir el día y avisar.
+    dia = df.index.tz_convert(TZ).normalize()
+    vacios = df["da"].isna().groupby(dia).transform("sum")
+    excl = vacios > 4
+    if excl.any():
+        n = int(pd.Series(dia[excl]).nunique())
+        df = df[~excl]
+        av.append(f"{n} días excluidos por falta de precio del mercado diario.")
     faltan = [c for c in ("da", "bp_sub", "bp_baj", "pe_sub", "pe_baj", "banda_sub", "banda_baj")
               if df[c].isna().mean() > 0.0]
     for c in faltan:
