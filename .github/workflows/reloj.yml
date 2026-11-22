@@ -36,17 +36,21 @@ jobs:
           ahora = datetime.now(timezone.utc)
           HORAS = [(6, 17), (8, 43), (11, 29), (16, 11)]   # UTC, de lunes a sábado (07:17 en Madrid en invierno)
           EXTRA = []                                       # pruebas puntuales (UTC), p. ej. ["2026-11-09T15:00"]
+          SIM = (5, 37)                                    # simulador BESS: día 6 de cada mes, cualquier día de la semana
           cand = []
           for d in range(4):
               dia = (ahora + timedelta(days=d)).date()
               if dia.weekday() <= 5:
                   cand += [datetime(dia.year, dia.month, dia.day, h, m, tzinfo=timezone.utc) for h, m in HORAS]
+              if dia.day == 6:
+                  cand.append(datetime(dia.year, dia.month, dia.day, *SIM, tzinfo=timezone.utc))
           cand += [datetime.fromisoformat(x).replace(tzinfo=timezone.utc) for x in EXTRA]
           obj = min(t for t in cand if t > ahora + timedelta(seconds=20))
           espera = (obj - ahora).total_seconds()
           LIM = 5 * 3600 + 30 * 60
           print(f"espera={int(min(espera, LIM))}")
-          print(f"lanza={'si' if espera <= LIM else 'no'}")
+          print(f"lanza={'si' if espera <= LIM and obj.weekday() <= 5 and (obj.hour, obj.minute) != SIM else 'no'}")
+          print(f"sim={'si' if espera <= LIM else 'no'}")
           print(f"objetivo={obj:%Y-%m-%d %H:%M} UTC")
           PY
           cat "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -57,6 +61,21 @@ jobs:
       - name: Lanzar el informe
         if: steps.plan.outputs.lanza == 'si'
         run: gh workflow run informe.yml -R "$REPO" && echo "Informe lanzado $(date -u '+%F %H:%M') UTC" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Lanzar el simulador BESS del mes anterior (del día 6 al 20, hasta que salga)
+        # Idempotente: solo lo lanza si faltan los resultados del mes anterior y no hay otro en marcha.
+        # Si una ejecución falla, el siguiente despertar del reloj (4 al día) lo reintenta.
+        if: steps.plan.outputs.sim == 'si'
+        run: |
+          DIA=$(date -u +%-d)
+          if [ "$DIA" -lt 6 ] || [ "$DIA" -gt 20 ]; then echo "Simulador: fuera de la ventana (día $DIA)"; exit 0; fi
+          DESDE=$(date -u -d "$(date -u +%Y-%m-01) -1 month" +%Y-%m-01); HASTA=$(date -u +%Y-%m-01)
+          F="data/simulador/resultados/unef_c/${DESDE}_${HASTA}_mensual_eur_mw.csv"
+          if gh api "repos/$REPO/contents/$F" --silent 2>/dev/null; then echo "Simulador: $DESDE ya simulado"; exit 0; fi
+          ACT=$(gh run list -R "$REPO" -w simulador.yml --limit 20 --json status -q '[.[] | select(.status != "completed")] | length' || echo 0)
+          if [ "${ACT:-0}" -gt 0 ]; then echo "Simulador: ya hay una ejecución en marcha"; exit 0; fi
+          gh workflow run simulador.yml -R "$REPO" -f accion=todo -f desde="$DESDE" -f hasta="$HASTA" -f escenarios="" \
+            && echo "Simulador lanzado para $DESDE..$HASTA ($(date -u '+%F %H:%M') UTC)" >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Relanzar el reloj
         # no si esta ejecución fue cancelada (otra la sustituyó): evita cadenas duplicadas
