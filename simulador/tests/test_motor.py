@@ -82,3 +82,28 @@ def test_banda_secuencial_no_supera_cooptimizada():
     assert tot(r_se) <= tot(r_co) + 1e-6
     assert abs(r_se["diario_bess"].iloc[0] - r_da["diario_bess"].iloc[0]) < 1e-6
     assert r_se["afrr_banda"].iloc[0] > 0
+
+
+def test_prevision_no_usa_el_propio_dia():
+    # La previsión de un día solo puede usar días anteriores: el día 3 se prevé con la media de 1 y 2.
+    from simulador import pronostico
+    idx = pd.date_range(pd.Timestamp("2026-07-13", tz="Europe/Madrid").tz_convert("UTC"), periods=96 * 3, freq="15min")
+    s = pd.Series(np.r_[np.full(96, 10.0), np.full(96, 30.0), np.full(96, 1000.0)], index=idx)
+    p = pronostico.prevision(s, dias=7, metodo="media")
+    assert np.allclose(p.iloc[192:].values, 20.0)
+    assert np.allclose(p.iloc[96:192].values, 10.0)
+
+
+def test_previsión_imperfecta_cobra_precio_real():
+    # Si la previsión es plana no hay señal para arbitrar: el diario no puede ganar dinero «por suerte».
+    p = np.r_[np.zeros(32), np.full(32, 100.0), np.full(32, 50.0)]
+    df = _dia(p)
+    cfg = _cfg(ciclos_max_dia=1.0)
+    cfg["prevision"] = {"modo": "imperfecta"}
+    d = motor.preparar(df, cfg["activo"], cfg)
+    d["da_prev"] = 50.0
+    d["bp_sub_prev"] = d["bp_baj_prev"] = 0.0
+    for k in ("ida1", "ida2", "ida3"):
+        d[f"{k}_dif_prev"] = 0.0
+    lin, met, det = motor.simular_dia(d, cfg["activo"], cfg)
+    assert abs(lin["diario_bess"]) < 1e-6
