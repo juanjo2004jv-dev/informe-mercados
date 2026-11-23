@@ -156,9 +156,7 @@ def cmd_validar(a):
         if len(meses) < n_esp:
             continue
         sel = nos.loc[meses]
-        tot = float(sel["total"].sum())
-        if x.get("medida") == "bruto":   # sin el coste de ciclado (degradación), que no es un flujo de mercado
-            tot -= float(sel["coste_ciclado"].sum())
+        tot = float(sel["total"].sum())   # el total no resta el coste de ciclado: es comparable a un ingreso bruto
         desv = tot / x["valor"] - 1
         filas.append({"escenario": x["escenario"], "mes": f"{x['desde']}..{x['hasta']} ({x['fuente_corta']})",
                       "total UNEF": x["valor"], "total nuestro": round(tot),
