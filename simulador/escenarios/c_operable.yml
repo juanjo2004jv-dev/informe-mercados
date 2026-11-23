@@ -1,0 +1,27 @@
+# C operable: mismo activo y mercados que la réplica de UNEF (C), pero decidiendo como un operador real,
+# sin conocer los precios del día:
+#  - diario y banda aFRR con previsión (media cuarto a cuarto de los 7 días anteriores; pronostico.py);
+#  - sin operar en las subastas intradiarias: con un diferencial IDA − diario previsto se pierde dinero
+#    (medido jul-sep 2026: −131 a +43 €/MW·mes), así que un operador racional no lo haría con esta previsión;
+#  - continuo en ventanas de 2 h con el precio de referencia (Modo, ME BESS ES);
+#  - ofertas de energía aFRR y mFRR a su coste de oportunidad (precio del diario del cuarto): PICASSO y MARI
+#    solo activan ofertas no peores que el marginal, así que no hay activaciones con pérdida.
+# La captura (C operable ÷ C) mide cuánto se pierde por no conocer el futuro. Referencias: Modo aplica un
+# 80 % en mercados sin datos reales de flota; la mediana de ERCOT en 2025 fue del 70 % del techo en el diario.
+nombre: "C operable · sin conocer los precios del día"
+activo:
+  p_bess_mw: 50
+  e_bess_mwh: 200
+  p_poi_mw: 50
+  p_poi_import_mw: 50
+  fv_mwp: 0
+  carga_desde_red: true
+normalizar_por: bess
+prevision: {modo: imperfecta}
+mercados:
+  banda_secuencial: true
+  intradiario: false
+  continuo: true
+  activacion_racional: true
+profundidad:
+  afrr_banda: {activa: false}
