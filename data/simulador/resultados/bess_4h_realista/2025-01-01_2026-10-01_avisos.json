@@ -1,5 +1,5 @@
 {
- "escenario": "BESS 50 MW/4 h · realista (con profundidad de mercado)",
+ "escenario": "Realista 50 MW/4 h · previsión imperfecta y profundidad",
  "avisos": [
   "Precio de banda aFRR a subir incoherente con coste ÷ banda requerida en 96 cuartos: se sustituye por la estimación.",
   "Precio de banda aFRR a bajar incoherente con coste ÷ banda requerida en 96 cuartos: se sustituye por la estimación.",
@@ -8,5 +8,6 @@
   "pe_baj: 2.06% de cuartos sin dato; se rellenan con el último valor.",
   "banda_sub: 0.16% de cuartos sin dato; se rellenan con el último valor.",
   "banda_baj: 0.16% de cuartos sin dato; se rellenan con el último valor."
- ]
+ ],
+ "generado": "2026-11-23T19:38:49Z"
 }
