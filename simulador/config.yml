@@ -64,7 +64,8 @@ mercados:
   rrtt_fase2: false      # aún no (UNEF no lo incluye)
   banda_horaria: auto    # auto: horaria solo si el precio de banda no cambia dentro de la hora
                          # (VERIFICADO: en jul-sep 2026 cambia en el 93 % de las horas -> cuartohoraria)
-  tau_afrr_h: 0.25       # horizonte de entrega que debe cubrir el SoC (Modo)
+  tau_afrr_h: 0.25       # el SoC debe cubrir 15 min de entrega: validez del producto 15 min (P.O. 7.2, anexo I) y prueba de habilitación a potencia máxima ≥ 15 min (Condiciones relativas al balance)
+  banda_secuencial: false # true: diario primero y banda después (orden real de cierre); false: co-optimización con previsión perfecta (cota superior)
   coste_ciclado_eur_mwh: 4.0   # UNEF: diferencial mínimo entre mercados
   ivpee: 0.0             # 0,07 = 7 % sobre ventas (desactivado, igual que Modo)
   reposicion: continuo   # la energía activada se repone en el continuo
