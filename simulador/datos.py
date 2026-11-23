@@ -230,3 +230,28 @@ def perfil_fv(df, fv_mwp, ratio_dc_ac=1.0):
     ref = s.rolling("30D", center=True, min_periods=96).max().replace(0, np.nan).bfill().ffill()
     pu = (s / ref).clip(0, 1).fillna(0)
     return (pu * fv_mwp).clip(upper=fv_mwp / ratio_dc_ac)
+
+
+def tramos(carpeta, sufijo="_mensual_eur_mw.csv"):
+    """Ficheros de resultados de un escenario ordenados para combinarlos con keep="last": primero por fecha
+    de generación (guardada en *_avisos.json; los antiguos sin fecha van primero) y, a igualdad, por longitud
+    del tramo. Así gana siempre la simulación más reciente y, entre las antiguas, la más larga."""
+    import json
+    out = []
+    for f in Path(carpeta).glob(f"*{sufijo}"):
+        tramo = f.name[: -len(sufijo)]
+        gen = ""
+        av = f.with_name(f"{tramo}_avisos.json")
+        if av.exists():
+            try:
+                gen = json.load(open(av, encoding="utf-8")).get("generado", "")
+            except ValueError:
+                gen = ""
+        try:
+            a, b = tramo.split("_")
+            dias = (pd.Timestamp(b) - pd.Timestamp(a)).days
+        except ValueError:
+            dias = 0
+        out.append((gen, dias, tramo, f))
+    return [x[-1] for x in sorted(out)]
+
