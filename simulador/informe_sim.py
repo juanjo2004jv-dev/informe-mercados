@@ -27,12 +27,13 @@ C = dict(fondo="#F6F2EA", tinta="#1F2933", verde="#1E3D32", musgo="#5F8D4E", cor
          ciruela="#6B4A7A", mostaza="#C9972B", gris="#6B7280", panel="#E9E2D3", linea="#D8D0BE",
          azul="#2B6F8F", marron="#8C5A3C")
 LINEAS = {"diario_bess": ("Diario (BESS)", C["verde"]), "diario_fv": ("Diario (FV)", C["mostaza"]),
-          "intradiario": ("Intradiario", C["azul"]), "afrr_banda": ("aFRR banda", C["coral"]),
+          "intradiario": ("Intradiario (IDA)", C["azul"]), "continuo": ("Continuo (MIC)", "#7FB3C8"),
+          "afrr_banda": ("aFRR banda", C["coral"]),
           "afrr_activacion": ("aFRR activación", C["ciruela"]), "mfrr": ("mFRR", C["musgo"]),
           "reposicion": ("Reposición (continuo)", C["marron"])}
 plt.rcParams.update({"font.family": "DejaVu Sans", "axes.edgecolor": C["linea"], "axes.labelcolor": C["gris"],
                      "xtick.color": C["gris"], "ytick.color": C["gris"], "text.color": C["tinta"]})
-FUENTE = "Fuente: ESIOS (REE) y OMIE. Simulación propia (optimización con previsión perfecta diaria)."
+FUENTE = "Fuente: ESIOS (REE) y OMIE. Simulación propia (optimización día a día; ver supuestos de cada escenario)."
 
 
 def n(v, d=0):
@@ -142,7 +143,7 @@ def validacion(dk, png):
         return None
     v = pd.read_csv(f)
     alias = {"unef_a": "A", "unef_b": "B", "unef_c": "C", "modo_diario_4h": "Solo diario 4 h",
-             "bess_4h_realista": "Realista 4 h", "c_techo": "C techo"}
+             "bess_4h_realista": "Realista 4 h", "c_techo": "C techo", "c_operable": "C operable"}
     tab = pd.DataFrame({
         "Escenario": v["escenario"].map(lambda x: alias.get(x, x)), "Periodo": v["mes"],
         "Referencia (€/MW)": v["total UNEF"].map(n), "Simulador (€/MW)": v["total nuestro"].map(n),
@@ -151,8 +152,8 @@ def validacion(dk, png):
                   "Meses y años: UNEF BESS Index (mismos supuestos: 50 MW / 4 h, FV 50 MW en A y B, coste de ciclado "
                   "4 €/MWh, banda precio-aceptante, diario antes que banda; ±10 % mensual, ±15 % anual) y Modo "
                   "(solo diario, ±8 %). "
-                  "ℹ = contraste informativo con Aurora (ingreso bruto, supuestos propios). Las partidas de mFRR, "
-                  "reposición e intradiario no cuadran una a una: UNEF no publica su método para ellas.",
+                  "ℹ = informativo: Aurora (ingreso bruto, supuestos propios) y captura de «C operable» (sin conocer "
+                  "los precios del día) frente a su techo; Modo usa un 80 % como factor de captura por defecto.",
                   fuente="Fuentes: UNEF, acta del GT de Almacenamiento de 22-10-2026; Modo Energy (ME vBESS ES); "
                          "Aurora Energy Research vía Energy-Storage.News (20-11-2026); ESIOS (REE) y OMIE. Simulación propia.")
     _tabla(fig, tab, (0.07, 0.10, 0.86, 0.66), ancho_col=[0.14, 0.30, 0.16, 0.16, 0.14, 0.10], fs=9.5)
@@ -217,8 +218,12 @@ def metodologia(dk):
         "generación FV peninsular real (ESIOS 1295) normalizada por su máximo móvil de 30 días (supuesto).",
         "Banda aFRR: precio en €/MW por hora; precio-aceptante en la réplica de UNEF; con tope de profundidad (fórmula pública de "
         "Modo Energy) en los escenarios «realistas». Cuartohoraria cuando el precio publicado cambia dentro de la hora.",
-        "Límites: previsión perfecta (cota superior de lo capturable), sin IVPEE, peajes, GdO, restricciones técnicas, mecanismo "
-        "de capacidad ni costes de O&M. Las cifras son referencias de optimización, no ingresos garantizados.",
+        "Previsión imperfecta (C operable y realista): diario y banda con la media cuarto a cuarto de los 7 días anteriores "
+        "(captura del arbitraje en el diario: 92,9 % en 2025 y 95,7 % en 2026, fuera de muestra); sin subastas intradiarias; "
+        "continuo en ventanas de 2 h con el precio de referencia (ESIOS 1727), con tope = energía casada en el cuarto (1442) "
+        "y 2 P; ofertas de energía aFRR y mFRR al precio del diario del cuarto (sin activaciones con pérdida).",
+        "Límites: sin IVPEE, peajes, GdO, restricciones técnicas, mecanismo de capacidad ni costes de O&M; las activaciones "
+        "se reponen en el continuo sin comprobar el SoC. Las cifras son referencias de optimización, no ingresos garantizados.",
     ]
     y = 0.84
     for linea in txt:
@@ -282,9 +287,9 @@ th{{background:{C['verde']};color:white}}img{{width:100%;border:1px solid {C['li
 <p>Ingreso neto de mercado de baterías en la península, {periodo}. Optimización con datos públicos de ESIOS (REE) y OMIE.</p>
 <p><a class="btn" href="simulador.pdf">Informe completo (PDF)</a> · <a href="../index.html">Radar semanal</a></p>
 <table><tr><th>Escenario</th><th>Total periodo (€/MW)</th><th>Anualizado (€/MW·año)</th><th>Ciclos/día</th><th>Precio medio de descarga (€/MWh)</th></tr>{filas_html}</table>
-{figs}<h2>Validación contra el UNEF BESS Index</h2><img src="validacion.png" alt="Validación">
+{figs}<h2>Validación contra referencias públicas</h2><img src="validacion.png" alt="Validación">
 <h2>Un día de operación</h2><img src="dia.png" alt="Día tipo">
-<p style="font-size:.8rem;color:{C['gris']}">Previsión perfecta: cota superior de lo capturable. No incluye IVPEE, peajes, GdO, restricciones técnicas ni O&amp;M.
+<p style="font-size:.8rem;color:{C['gris']}">A, B, C, C techo y solo diario: previsión perfecta (cota superior). C operable y realista: deciden sin conocer los precios del día. No incluye IVPEE, peajes, GdO, restricciones técnicas ni O&amp;M.
 Fuente: ESIOS (REE) y OMIE. Elaboración propia.</p></body></html>"""
     (SAL / "index.html").write_text(html, encoding="utf-8")
     print(f"Informe del simulador: {dk.n} páginas en {SAL}")
