@@ -67,11 +67,13 @@ class _LP:
         return r.x
 
 
-def _despacho(d, a, m, precio, bu_fijo=None, bd_fijo=None, fijo=None, e0=None):
+def _despacho(d, a, m, precio, bu_fijo=None, bd_fijo=None, fijo=None, e0=None, bp=None, lim=None):
     """Resuelve el programa físico de un día. Si bu_fijo/bd_fijo vienen dados, la banda está fijada
     (etapa 2). `precio` es el precio de la energía usado en el objetivo. `fijo` = (máscara, programa
     previo): en los cuartos de la máscara el programa no se puede cambiar (intradiario que no cubre esas
-    horas). `e0` = SoC inicial en MWh (si no, soc_inicial × E)."""
+    horas). `e0` = SoC inicial en MWh (si no, soc_inicial × E). `bp` = (precio banda subir, bajar) con el
+    que se DECIDE (previsión); por defecto, el publicado. `lim` = (tope, programa previo): el saldo neto
+    en el punto de conexión no puede moverse más de `tope` MW respecto al previo (liquidez del continuo)."""
     T = len(d)
     P, E = a["p_bess_mw"], a["e_bess_mwh"]
     POI, PIMP = a["p_poi_mw"], (a["p_poi_import_mw"] if a["carga_desde_red"] else 0.0)
@@ -108,8 +110,9 @@ def _despacho(d, a, m, precio, bu_fijo=None, bd_fijo=None, fijo=None, e0=None):
     lp.obj(dis, venta * DT - kappa * DT)
     lp.obj(cg, -precio * DT)
     if con_banda:
-        lp.obj(bu, d["bp_sub"].values * DT)
-        lp.obj(bd, d["bp_baj"].values * DT)
+        bps, bpb = bp if bp is not None else (d["bp_sub"].values, d["bp_baj"].values)
+        lp.obj(bu, np.asarray(bps) * DT)
+        lp.obj(bd, np.asarray(bpb) * DT)
 
     e0 = a["soc_inicial"] * E if e0 is None else e0
     tau = m["tau_afrr_h"]
@@ -132,6 +135,10 @@ def _despacho(d, a, m, precio, bu_fijo=None, bd_fijo=None, fijo=None, e0=None):
         else:
             lp.fila([(bu[t], tau / ed)], hi=e0)
             lp.fila([(bd[t], tau * ec)], hi=E - e0)
+        if lim is not None:
+            tope, prev = lim
+            neto0 = prev["pvx"][t] + prev["dis"][t] - prev["cg"][t]
+            lp.fila([(pvx[t], 1), (dis[t], 1), (cg[t], -1)], lo=neto0 - tope[t], hi=neto0 + tope[t])
         if binarios:
             lp.fila([(cg[t], 1), (cpv[t], 1), (u[t], -P)], hi=0)
             lp.fila([(dis[t], 1), (u[t], P)], hi=P)
@@ -186,6 +193,9 @@ def preparar(df, a, cfg):
     fut = d["cont"][::-1].rolling(n, min_periods=1).mean()[::-1].shift(-1)
     d["p_rep"] = fut.fillna(d["cont"])
     d["p_id"] = d["ida1"].fillna(d["ida2"]).fillna(d["ida3"]).fillna(d["da"])
+    if cfg.get("prevision", {}).get("modo", "perfecta") == "imperfecta":
+        from .pronostico import anadir
+        d = anadir(d, cfg)
     return d
 
 
@@ -195,17 +205,22 @@ def simular_dia(d, a, cfg, e0=None):
     rt = ec * ed
     kappa = m["coste_ciclado_eur_mwh"]
     pda = d["da"].values
+    imperfecta = cfg.get("prevision", {}).get("modo", "perfecta") == "imperfecta"
+    # Precios con los que se DECIDE: los publicados (previsión perfecta) o las previsiones (pronostico.py).
+    # Lo que se COBRA es siempre el precio publicado.
+    pdec = d["da_prev"].values if imperfecta else pda
+    bp_dec = (d["bp_sub_prev"].values, d["bp_baj_prev"].values) if imperfecta else None
     if m.get("banda_secuencial", False) and m["afrr_banda"]:
         # Orden real de cierre: el diario casa antes que el mercado de reserva aFRR (ofertas de reserva
         # hasta las 16:00 de D-1, tras publicarse el diario). 1) diario solo; 2) banda sobre lo que queda,
         # con el programa del diario fijo.
-        s0 = _despacho(d, a, {**m, "afrr_banda": False}, pda, e0=e0)
+        s0 = _despacho(d, a, {**m, "afrr_banda": False}, pdec, e0=e0)
         try:
-            s1 = _despacho(d, a, m, np.zeros(len(d)), fijo=(np.ones(len(d), bool), s0), e0=e0)
+            s1 = _despacho(d, a, m, np.zeros(len(d)), fijo=(np.ones(len(d), bool), s0), e0=e0, bp=bp_dec)
         except RuntimeError:
             s1 = s0
     else:
-        s1 = _despacho(d, a, m, pda, e0=e0)
+        s1 = _despacho(d, a, m, pdec, e0=e0, bp=bp_dec)
     # Etapa 2: cada subasta intradiaria reoptimiza solo los cuartos que cubre (IDA1 y IDA2 todo el día,
     # IDA3 desde las 12:00), con la banda fijada y lo anterior como punto de partida.
     s2, ingreso_id, ida_fallidas = s1, 0.0, 0
@@ -215,8 +230,11 @@ def simular_dia(d, a, cfg, e0=None):
             cubre = ~np.isnan(p)
             if not cubre.any():
                 continue
+            # Con previsión imperfecta se decide con el diario ya conocido más el diferencial IDA − diario
+            # previsto con los días anteriores (pronostico.py); se cobra el precio real de la subasta.
+            pk = (pda + d[f"{k}_dif_prev"].fillna(0.0).values) if imperfecta else p
             try:
-                nuevo = _despacho(d, a, m, np.where(cubre, p, 0.0), bu_fijo=s1["bu"], bd_fijo=s1["bd"],
+                nuevo = _despacho(d, a, m, np.where(cubre, pk, 0.0), bu_fijo=s1["bu"], bd_fijo=s1["bd"],
                                   fijo=(~cubre, s2), e0=e0)
             except RuntimeError:
                 # Con lo ya casado fijo, la reoptimización puede quedar infactible por tolerancias
@@ -227,6 +245,27 @@ def simular_dia(d, a, cfg, e0=None):
             dn = (nuevo["pvx"] + nuevo["dis"] - nuevo["cg"]) - (s2["pvx"] + s2["dis"] - s2["cg"])
             ingreso_id += float(np.nansum(np.where(cubre, p, 0.0) * dn) * DT)
             s2 = nuevo
+    # Continuo (MIC): ventanas móviles de N horas con el precio de referencia del continuo (ESIOS 1727)
+    # conocido dentro de la ventana, como el paso intradiario de Modo (ME BESS ES). Volumen limitado por la
+    # energía casada en el continuo en ese cuarto (ESIOS 1442) y por 2 × P. Banda fija.
+    ingreso_cont, cont_fallidas = 0.0, 0
+    if m.get("continuo", False):
+        nv = max(int(round(m.get("continuo_ventana_h", 2) / DT)), 1)
+        pcont = d["cont"].values
+        tope = np.minimum(m.get("continuo_cuota", 1.0) * d["cont_mw"].fillna(0).abs().values,
+                          2 * a["p_bess_mw"])
+        for i0 in range(0, len(d), nv):
+            ven = np.zeros(len(d), bool)
+            ven[i0:i0 + nv] = True
+            try:
+                nuevo = _despacho(d, a, m, np.where(ven, pcont, 0.0), bu_fijo=s1["bu"], bd_fijo=s1["bd"],
+                                  fijo=(~ven, s2), e0=e0, lim=(tope, s2))
+            except RuntimeError:
+                cont_fallidas += 1
+                continue
+            dn = (nuevo["pvx"] + nuevo["dis"] - nuevo["cg"]) - (s2["pvx"] + s2["dis"] - s2["cg"])
+            ingreso_cont += float(np.sum(np.where(ven, pcont, 0.0) * dn) * DT)
+            s2 = nuevo
     P, POI = a["p_bess_mw"], a["p_poi_mw"]
     PIMP = a["p_poi_import_mw"] if a["carga_desde_red"] else 0.0
     bu, bd = s1["bu"], s1["bd"]
@@ -234,13 +273,22 @@ def simular_dia(d, a, cfg, e0=None):
     aU = bu * d["ratio_sub"].values if m["afrr_activacion"] else 0 * bu
     aD = bd * d["ratio_baj"].values if m["afrr_activacion"] else 0 * bd
     pc = d["p_rep"].values
+    # Coste de oportunidad con el que se ponen las ofertas de energía de balance (aFRR y mFRR). Con previsión
+    # imperfecta no se conoce el continuo futuro al ofertar: se usa el precio del diario de ese cuarto.
+    pcd = pda if imperfecta else pc
+    if m.get("activacion_racional", False):
+        # La oferta de energía aFRR se pone a su coste de oportunidad (reponer la energía en el continuo):
+        # PICASSO solo activa ofertas con precio no peor que el marginal, así que no hay activaciones con
+        # pérdida. A subir: marginal ≥ reposición / RTE + κ. A bajar: marginal ≤ reposición × RTE − κ.
+        aU = np.where(d["pe_sub"].values >= pcd / rt + kappa, aU, 0.0)
+        aD = np.where(d["pe_baj"].values <= pcd * rt - kappa, aD, 0.0)
     pm = d["pm"].fillna(d["cont"]).values
     if m["mfrr"]:
         h_up = np.maximum(0, np.minimum(P - s2["dis"] - bu, POI - s2["pvx"] - s2["dis"] - bu))
         dn_red = (PIMP - s2["cg"] - bd) if a["carga_desde_red"] else (s2["pvx"] + s2["dis"] - bd)
         h_dn = np.maximum(0, np.minimum(P - s2["cg"] - s2["cpv"] - bd, dn_red))
-        mU = np.where(pm > pc / rt + kappa, np.minimum(h_up, d["cap_mu"].values), 0.0)
-        mD = np.where(pm < pc * rt - kappa, np.minimum(h_dn, d["cap_md"].values), 0.0)
+        mU = np.where(pm > pcd / rt + kappa, np.minimum(h_up, d["cap_mu"].values), 0.0)
+        mD = np.where(pm < pcd * rt - kappa, np.minimum(h_dn, d["cap_md"].values), 0.0)
         # El precio 2197 es el de la dirección dominante del cuarto (verificado: con bajada dominante va
         # 44 €/MWh por debajo del continuo; con subida, casi igual). Solo se participa en esa dirección.
         sub_dom = d["m_sub"].abs().values >= d["m_baj"].abs().values
@@ -252,6 +300,7 @@ def simular_dia(d, a, cfg, e0=None):
         "diario_bess": float(np.sum(pda * (s1["dis"] - s1["cg"])) * DT),
         "diario_fv": float(np.sum(pda * s1["pvx"]) * DT),
         "intradiario": ingreso_id,
+        "continuo": ingreso_cont,
         "afrr_banda": float(np.sum(d["bp_sub"].values * bu + d["bp_baj"].values * bd) * DT),
         "afrr_activacion": float(np.sum(d["pe_sub"].values * aU - d["pe_baj"].values * aD) * DT),
         "mfrr": float(np.sum(pm * (mU - mD)) * DT),
@@ -266,6 +315,7 @@ def simular_dia(d, a, cfg, e0=None):
     E = a["e_bess_mwh"]
     met = {
         "ida_fallidas": ida_fallidas,
+        "cont_fallidas": cont_fallidas,
         "mwh_descarga": descarga,
         "ciclos": descarga / ed / E if E else 0.0,
         "mwh_fv": float(np.sum(d["fv"].values) * DT),
