@@ -1,0 +1,15 @@
+# Cota superior de C: diario y banda co-optimizados con previsión perfecta del día (como el paso de diario
+# de Modo). Sirve para medir cuánto vale anticipar la banda al ofertar en el diario.
+nombre: "C techo · diario y banda co-optimizados"
+activo:
+  p_bess_mw: 50
+  e_bess_mwh: 200
+  p_poi_mw: 50
+  p_poi_import_mw: 50
+  fv_mwp: 0
+  carga_desde_red: true
+normalizar_por: bess
+profundidad:
+  afrr_banda: {activa: false}
+mercados:
+  banda_secuencial: false
