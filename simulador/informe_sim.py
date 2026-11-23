@@ -42,7 +42,8 @@ def n(v, d=0):
 
 def _resultados():
     out = {}
-    for carpeta in sorted(p for p in RES.iterdir() if p.is_dir()):
+    vigentes = {f.stem for f in (Path(__file__).parent / "escenarios").glob("*.yml")}
+    for carpeta in sorted(p for p in RES.iterdir() if p.is_dir() and p.name in vigentes):
         arch = tramos(carpeta)
         if not arch:
             continue
@@ -141,14 +142,15 @@ def validacion(dk, png):
         return None
     v = pd.read_csv(f)
     alias = {"unef_a": "A", "unef_b": "B", "unef_c": "C", "modo_diario_4h": "Solo diario 4 h",
-             "bess_4h_realista": "Realista 4 h", "c_secuencial": "C secuencial"}
+             "bess_4h_realista": "Realista 4 h", "c_techo": "C techo"}
     tab = pd.DataFrame({
         "Escenario": v["escenario"].map(lambda x: alias.get(x, x)), "Periodo": v["mes"],
         "Referencia (€/MW)": v["total UNEF"].map(n), "Simulador (€/MW)": v["total nuestro"].map(n),
         "Desviación": v["desviación total"], "": v["ok"]})
     fig = dk.hoja("Validación contra referencias públicas",
                   "Meses y años: UNEF BESS Index (mismos supuestos: 50 MW / 4 h, FV 50 MW en A y B, coste de ciclado "
-                  "4 €/MWh, banda precio-aceptante; ±10 % mensual, ±15 % anual) y Modo (solo diario, ±8 %). "
+                  "4 €/MWh, banda precio-aceptante, diario antes que banda; ±10 % mensual, ±15 % anual) y Modo "
+                  "(solo diario, ±8 %). "
                   "ℹ = contraste informativo con Aurora (ingreso bruto, supuestos propios). Las partidas de mFRR, "
                   "reposición e intradiario no cuadran una a una: UNEF no publica su método para ellas.",
                   fuente="Fuentes: UNEF, acta del GT de Almacenamiento de 22-10-2026; Modo Energy (ME vBESS ES); "
