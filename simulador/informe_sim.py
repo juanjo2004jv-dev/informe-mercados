@@ -203,7 +203,9 @@ def metodologia(dk):
     fig = dk.hoja("Metodología y supuestos")
     txt = [
         "Motor: optimización lineal entera mixta (HiGHS, código abierto) día a día, a 15 minutos, en tres etapas:",
-        "  1) Diario: compra-venta en el diario y banda aFRR a subir y a bajar, con previsión perfecta del día.",
+        "  1) Diario y banda aFRR, con previsión perfecta del día. Réplica de UNEF (A, B, C): en el orden real de cierre, "
+        "primero el diario (cierre 12:00 de D-1) y después la banda sobre lo que queda (ofertas hasta las 16:00 de D-1). "
+        "C techo y realista: diario y banda co-optimizados (cota superior).",
         "  2) Intradiario: IDA1, IDA2 e IDA3 reoptimizan por turno los cuartos que cubren, con la banda ya fijada.",
         "  3) Tiempo real: activación aFRR = banda ofrecida × (energía activada ÷ banda asignada del sistema); mFRR con la "
         "potencia libre, solo en la dirección dominante del cuarto (la que fija el precio publicado) y con tope de profundidad "
