@@ -28,3 +28,11 @@ anual:
   unef_c: {2025: 216788}
   modo_diario_4h: {2025: 129000}
 tolerancia_anual: {unef_a: 0.15, unef_b: 0.15, unef_c: 0.15, modo_diario_4h: 0.08}
+# Referencias externas INFORMATIVAS (no cuentan como fallo: cada fuente usa supuestos propios).
+# Aurora Energy Research, citado por Energy-Storage.News (20-nov-2026, «How a Spanish battery makes money today»):
+#   batería de 4 h en mercado mayorista + reserva secundaria y terciaria, ingreso BRUTO de los 12 meses a
+#   agosto de 2026: ≈ 281.000 €/MW (aFRR ≈ 62 %, diario e intradiario ≈ 37 %). Se compara con C sin coste de ciclado.
+externas:
+  - {escenario: unef_c, desde: "2025-09", hasta: "2026-08", valor: 281000, medida: bruto, fuente_corta: "Aurora, bruto"}
+  - {escenario: bess_4h_realista, desde: "2025-09", hasta: "2026-08", valor: 281000, medida: bruto, fuente_corta: "Aurora, bruto"}
+
