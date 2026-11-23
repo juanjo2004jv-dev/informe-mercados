@@ -195,7 +195,17 @@ def simular_dia(d, a, cfg, e0=None):
     rt = ec * ed
     kappa = m["coste_ciclado_eur_mwh"]
     pda = d["da"].values
-    s1 = _despacho(d, a, m, pda, e0=e0)
+    if m.get("banda_secuencial", False) and m["afrr_banda"]:
+        # Orden real de cierre: el diario casa antes que el mercado de reserva aFRR (ofertas de reserva
+        # hasta las 16:00 de D-1, tras publicarse el diario). 1) diario solo; 2) banda sobre lo que queda,
+        # con el programa del diario fijo.
+        s0 = _despacho(d, a, {**m, "afrr_banda": False}, pda, e0=e0)
+        try:
+            s1 = _despacho(d, a, m, np.zeros(len(d)), fijo=(np.ones(len(d), bool), s0), e0=e0)
+        except RuntimeError:
+            s1 = s0
+    else:
+        s1 = _despacho(d, a, m, pda, e0=e0)
     # Etapa 2: cada subasta intradiaria reoptimiza solo los cuartos que cubre (IDA1 y IDA2 todo el día,
     # IDA3 desde las 12:00), con la banda fijada y lo anterior como punto de partida.
     s2, ingreso_id, ida_fallidas = s1, 0.0, 0
