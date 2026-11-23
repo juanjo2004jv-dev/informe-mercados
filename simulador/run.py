@@ -86,7 +86,9 @@ def cmd_simular(a):
         eur.to_csv(out / f"{tramo}_mensual_eur_mw.csv", float_format="%.1f")
         det.to_csv(out / f"{tramo}_cuartos.csv.gz", float_format="%.3f")
         with open(out / f"{tramo}_avisos.json", "w", encoding="utf-8") as f:
-            json.dump({"escenario": cfg.get("nombre", nombre), "avisos": avisos}, f, ensure_ascii=False, indent=1)
+            json.dump({"escenario": cfg.get("nombre", nombre), "avisos": avisos,
+                       "generado": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%M:%SZ")},
+                      f, ensure_ascii=False, indent=1)
         resumen(f"### {cfg.get('nombre', nombre)} (€/MW)\n\n" + eur.round(0).to_markdown()
                 + ("\n\nAvisos: " + " · ".join(avisos) if avisos else ""))
     if errores:
@@ -100,7 +102,7 @@ def cmd_validar(a):
     tol = ref["tolerancia_total"]
     filas, fallos = [], 0
     for esc, meses in ref["unef"].items():
-        archivos = sorted((RES / esc).glob("*_mensual_eur_mw.csv"))
+        archivos = datos.tramos(RES / esc)
         if not archivos:
             continue
         nos = pd.concat(pd.read_csv(x, index_col=0) for x in archivos)
@@ -120,7 +122,7 @@ def cmd_validar(a):
             filas.append(fila)
     # totales anuales (solo si el año está completo)
     for esc, anios in ref.get("anual", {}).items():
-        archivos = sorted((RES / esc).glob("*_mensual_eur_mw.csv"))
+        archivos = datos.tramos(RES / esc)
         if not archivos:
             continue
         nos = pd.concat(pd.read_csv(x, index_col=0) for x in archivos)
@@ -142,6 +144,25 @@ def cmd_validar(a):
             filas.append({"escenario": esc, "mes": f"{anio} (año)", "total UNEF": valor, "total nuestro": round(tot),
                           "desviación total": f"{desv:+.1%}", "ok": "✔" if abs(desv) <= tol_a else "⚠"})
             fallos += abs(desv) > tol_a
+    # referencias externas (informativas, sin aprobado/suspenso: cada fuente define el ingreso a su manera)
+    for x in ref.get("externas", []):
+        archivos = datos.tramos(RES / x["escenario"])
+        if not archivos:
+            continue
+        nos = pd.concat(pd.read_csv(f, index_col=0) for f in archivos)
+        nos = nos[~nos.index.duplicated(keep="last")]
+        meses = [m for m in nos.index if x["desde"] <= str(m) <= x["hasta"]]
+        n_esp = len(pd.period_range(x["desde"], x["hasta"], freq="M"))
+        if len(meses) < n_esp:
+            continue
+        sel = nos.loc[meses]
+        tot = float(sel["total"].sum())
+        if x.get("medida") == "bruto":   # sin el coste de ciclado (degradación), que no es un flujo de mercado
+            tot -= float(sel["coste_ciclado"].sum())
+        desv = tot / x["valor"] - 1
+        filas.append({"escenario": x["escenario"], "mes": f"{x['desde']}..{x['hasta']} ({x['fuente_corta']})",
+                      "total UNEF": x["valor"], "total nuestro": round(tot),
+                      "desviación total": f"{desv:+.1%}", "ok": "ℹ"})
     t = pd.DataFrame(filas)
     RES.mkdir(parents=True, exist_ok=True)
     t.to_csv(RES / "validacion_unef.csv", index=False)
