@@ -36,4 +36,10 @@ externas:
   - {escenario: unef_c, desde: "2025-09", hasta: "2026-08", valor: 281000, medida: bruto, fuente_corta: "Aurora, bruto"}
   - {escenario: c_techo, desde: "2025-09", hasta: "2026-08", valor: 281000, medida: bruto, fuente_corta: "Aurora, bruto"}
   - {escenario: bess_4h_realista, desde: "2025-09", hasta: "2026-08", valor: 281000, medida: bruto, fuente_corta: "Aurora, bruto"}
+# Captura frente al techo con previsión perfecta (informativa). Referencias: Modo aplica un factor del 80 %
+# («percent of perfect») en mercados sin datos reales de flota, derivado de Gran Bretaña y ERCOT (metodologías
+# de Polonia y SPP); en ERCOT 2025 la batería mediana capturó el 70 % de su TBX en el diario y el 61 % en tiempo real.
+capturas:
+  - {escenario: c_operable, techo: unef_c, desde: "2025-01", hasta: "2026-12", referencia: 0.80, fuente_corta: "frente a C"}
+  - {escenario: c_operable, techo: c_techo, desde: "2025-01", hasta: "2026-12", referencia: 0.80, fuente_corta: "frente a C techo"}
 
