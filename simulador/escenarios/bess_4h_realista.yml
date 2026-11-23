@@ -1,6 +1,7 @@
-# BESS stand-alone 50 MW / 4 h con supuestos realistas propios: profundidad de mercado (Modo v0.5)
-# en banda aFRR y mFRR. Sirve de contraste con la réplica de UNEF (precio-aceptante en la banda).
-nombre: "BESS 50 MW/4 h · realista (con profundidad de mercado)"
+# BESS stand-alone 50 MW / 4 h con supuestos realistas propios: como «C operable» (previsión imperfecta,
+# diario antes que banda, continuo, ofertas de energía a coste de oportunidad) y además con profundidad de
+# mercado (Modo v0.5) en banda aFRR y mFRR: tope del 30 % de la potencia en banda y umbral del 1 %.
+nombre: "Realista 50 MW/4 h · previsión imperfecta y profundidad"
 activo:
   p_bess_mw: 50
   e_bess_mwh: 200
@@ -9,3 +10,9 @@ activo:
   fv_mwp: 0
   carga_desde_red: true
 normalizar_por: bess
+prevision: {modo: imperfecta}
+mercados:
+  banda_secuencial: true
+  intradiario: false
+  continuo: true
+  activacion_racional: true
