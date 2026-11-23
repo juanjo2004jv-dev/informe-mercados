@@ -70,6 +70,17 @@ mercados:
   ivpee: 0.0             # 0,07 = 7 % sobre ventas (desactivado, igual que Modo)
   reposicion: continuo   # la energía activada se repone en el continuo
   reposicion_horizonte_h: 2   # SUPUESTO: al precio medio del continuo de las 2 h siguientes
+  continuo: false        # true: arbitraje en el continuo (MIC) en ventanas móviles con el precio de referencia (ESIOS 1727)
+  continuo_ventana_h: 2  # ventana de previsión perfecta en tiempo real (Modo, ME BESS ES: ventanas móviles de 2 h)
+  continuo_cuota: 1.0    # tope de volumen = cuota × energía casada en el continuo en el cuarto (ESIOS 1442), y nunca > 2 P (Modo)
+  activacion_racional: false   # true: oferta de energía aFRR a su coste de oportunidad; sin activaciones con pérdida
+
+# Previsión con la que se DECIDE (siempre se cobra el precio publicado).
+#   perfecta: conoce los precios del día (cota superior, como UNEF y Modo).
+#   imperfecta: diario y banda con la media cuarto a cuarto de los 7 días anteriores; intradiario con el
+#   diferencial IDA − diario previsto igual. Elegido con 2025 y comprobado fuera de muestra en 2026
+#   (captura del arbitraje en el diario: 92,9 % y 95,7 % del techo).
+prevision: {modo: perfecta, metodo: media, dias: 7}
 
 # Profundidad de mercado (fórmula pública de Modo, v0.5): P_eff = T(1+ln(P/T)) si P > T;
 # tope_t = min(P_eff * V_t / D, techo * P). activa: false = precio-aceptante (lo que reproduce a UNEF
