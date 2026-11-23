@@ -17,7 +17,7 @@ from . import datos, motor
 
 RAIZ = Path(__file__).resolve().parent.parent
 RES = RAIZ / "data" / "simulador" / "resultados"
-LINEAS = ["diario_bess", "diario_fv", "intradiario", "afrr_banda", "afrr_activacion", "mfrr", "reposicion"]
+LINEAS = ["diario_bess", "diario_fv", "intradiario", "continuo", "afrr_banda", "afrr_activacion", "mfrr", "reposicion"]
 
 
 def _fusion(base, extra):
@@ -161,6 +161,24 @@ def cmd_validar(a):
         filas.append({"escenario": x["escenario"], "mes": f"{x['desde']}..{x['hasta']} ({x['fuente_corta']})",
                       "total UNEF": x["valor"], "total nuestro": round(tot),
                       "desviación total": f"{desv:+.1%}", "ok": "ℹ"})
+    # captura: escenario operable frente a su techo con previsión perfecta (informativo)
+    def _mens(esc):
+        arch = datos.tramos(RES / esc)
+        if not arch:
+            return None
+        x = pd.concat(pd.read_csv(f, index_col=0) for f in arch)
+        return x[~x.index.duplicated(keep="last")]
+    for x in ref.get("capturas", []):
+        a, b = _mens(x["escenario"]), _mens(x["techo"])
+        if a is None or b is None:
+            continue
+        meses = [m for m in a.index if m in b.index and x["desde"] <= str(m) <= x["hasta"]]
+        if not meses:
+            continue
+        ta, tb = float(a.loc[meses, "total"].sum()), float(b.loc[meses, "total"].sum())
+        filas.append({"escenario": x["escenario"], "mes": f"{meses[0]}..{meses[-1]} ({x['fuente_corta']})",
+                      "total UNEF": round(tb), "total nuestro": round(ta),
+                      "desviación total": f"captura {ta / tb:.1%}", "ok": "ℹ"})
     t = pd.DataFrame(filas)
     RES.mkdir(parents=True, exist_ok=True)
     t.to_csv(RES / "validacion_unef.csv", index=False)
