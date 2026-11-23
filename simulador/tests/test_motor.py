@@ -61,3 +61,24 @@ def test_precio_negativo_no_carga_y_descarga_a_la_vez():
     cfg = _cfg(eta_carga=0.9, eta_descarga=0.9)
     res, det = motor.simular(_dia(p), cfg["activo"], cfg)
     assert ((det["cg"] > 1e-6) & (det["dis"] > 1e-6)).sum() == 0
+
+
+def test_banda_secuencial_no_supera_cooptimizada():
+    # El orden real (diario y después banda) nunca puede ganar más que decidir ambos a la vez con la misma
+    # información: la co-optimización es la cota superior. El diario del secuencial es el óptimo solo-diario.
+    rng = np.random.default_rng(1)
+    p = 70 + 50 * np.sin(np.arange(96) / 96 * 4 * np.pi) + rng.normal(0, 5, 96)
+    df = _dia(p, bp_sub=12.0, bp_baj=5.0)
+    cfg = _cfg(eta_carga=0.938, eta_descarga=0.938)
+    cfg["mercados"]["afrr_activacion"] = False
+    r_co, _ = motor.simular(df, cfg["activo"], cfg)
+    cfg_s = _cfg(eta_carga=0.938, eta_descarga=0.938)
+    cfg_s["mercados"].update({"afrr_activacion": False, "banda_secuencial": True})
+    r_se, _ = motor.simular(df, cfg_s["activo"], cfg_s)
+    cfg_d = _cfg(eta_carga=0.938, eta_descarga=0.938)
+    cfg_d["mercados"].update({"afrr_activacion": False, "afrr_banda": False})
+    r_da, _ = motor.simular(df, cfg_d["activo"], cfg_d)
+    tot = lambda r: float(r["diario_bess"].iloc[0] + r["afrr_banda"].iloc[0])  # noqa: E731
+    assert tot(r_se) <= tot(r_co) + 1e-6
+    assert abs(r_se["diario_bess"].iloc[0] - r_da["diario_bess"].iloc[0]) < 1e-6
+    assert r_se["afrr_banda"].iloc[0] > 0
