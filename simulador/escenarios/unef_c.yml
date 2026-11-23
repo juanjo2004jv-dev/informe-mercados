@@ -8,7 +8,13 @@ activo:
   fv_mwp: 0
   carga_desde_red: true
 normalizar_por: bess
-# UNEF se comporta como precio-aceptante en la banda aFRR (sin tope de profundidad): verificado al
-# replicar jul-sep 2026 (con el tope de Modo la banda sale al 35-45 % de la de UNEF).
+# Banda aFRR precio-aceptante (sin tope de profundidad): con el tope de Modo la banda sale al 35-45 % de
+# la de UNEF (jul-sep 2026).
+# Orden real de cierre: diario primero (cierre 12:00 de D-1) y reserva aFRR después (ofertas hasta las
+# 16:00 de D-1; REE, «Ser proveedor de servicios de ajuste»). VERIFICADO 23-nov-2026: con este orden el
+# total anual 2025 queda a −0,1 % (A), −1,4 % (B) y −0,8 % (C) de UNEF, frente a +3,1 %, +8,9 % y +13,9 %
+# co-optimizando diario y banda con previsión perfecta (escenario c_techo). Sin parámetros ajustados.
+mercados:
+  banda_secuencial: true
 profundidad:
   afrr_banda: {activa: false}
