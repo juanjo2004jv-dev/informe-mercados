@@ -17,6 +17,8 @@ import yaml
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Rectangle
 
+from .datos import tramos
+
 RAIZ = Path(__file__).resolve().parent.parent
 RES = RAIZ / "data" / "simulador" / "resultados"
 SAL = RAIZ / "docs" / "simulador"
@@ -41,13 +43,13 @@ def n(v, d=0):
 def _resultados():
     out = {}
     for carpeta in sorted(p for p in RES.iterdir() if p.is_dir()):
-        arch = sorted(carpeta.glob("*_mensual_eur_mw.csv"))
+        arch = tramos(carpeta)
         if not arch:
             continue
         m = pd.concat(pd.read_csv(x, index_col=0) for x in arch)
         m = m[~m.index.duplicated(keep="last")].sort_index()
         nombre = carpeta.name
-        for x in sorted(carpeta.glob("*_avisos.json")):
+        for x in tramos(carpeta, "_avisos.json"):
             nombre = json.load(open(x, encoding="utf-8")).get("escenario", nombre)
         out[carpeta.name] = (nombre, m)
     return out
@@ -138,22 +140,26 @@ def validacion(dk, png):
     if not f.exists():
         return None
     v = pd.read_csv(f)
+    alias = {"unef_a": "A", "unef_b": "B", "unef_c": "C", "modo_diario_4h": "Solo diario 4 h",
+             "bess_4h_realista": "Realista 4 h", "c_secuencial": "C secuencial"}
     tab = pd.DataFrame({
-        "Escenario": v["escenario"].str.replace("unef_", "").str.upper(), "Mes": v["mes"],
-        "UNEF (€/MW)": v["total UNEF"].map(n), "Simulador (€/MW)": v["total nuestro"].map(n),
+        "Escenario": v["escenario"].map(lambda x: alias.get(x, x)), "Periodo": v["mes"],
+        "Referencia (€/MW)": v["total UNEF"].map(n), "Simulador (€/MW)": v["total nuestro"].map(n),
         "Desviación": v["desviación total"], "": v["ok"]})
-    fig = dk.hoja("Validación contra el UNEF BESS Index",
-                  "Mismos supuestos que UNEF (50 MW / 4 h, FV 50 MW en A y B, coste de ciclado 4 €/MWh, banda aFRR "
-                  "precio-aceptante). Tolerancia ±10 % en el total mensual. Las partidas de mFRR, reposición e "
-                  "intradiario aún no cuadran: UNEF no publica su método para ellas.",
-                  fuente="Fuente: UNEF, acta del GT de Almacenamiento de 22-10-2026; ESIOS (REE) y OMIE. Simulación propia.")
-    _tabla(fig, tab, (0.07, 0.10, 0.86, 0.66), fs=9.5)
+    fig = dk.hoja("Validación contra referencias públicas",
+                  "Meses y años: UNEF BESS Index (mismos supuestos: 50 MW / 4 h, FV 50 MW en A y B, coste de ciclado "
+                  "4 €/MWh, banda precio-aceptante; ±10 % mensual, ±15 % anual) y Modo (solo diario, ±8 %). "
+                  "ℹ = contraste informativo con Aurora (ingreso bruto, supuestos propios). Las partidas de mFRR, "
+                  "reposición e intradiario no cuadran una a una: UNEF no publica su método para ellas.",
+                  fuente="Fuentes: UNEF, acta del GT de Almacenamiento de 22-10-2026; Modo Energy (ME vBESS ES); "
+                         "Aurora Energy Research vía Energy-Storage.News (20-11-2026); ESIOS (REE) y OMIE. Simulación propia.")
+    _tabla(fig, tab, (0.07, 0.10, 0.86, 0.66), ancho_col=[0.14, 0.30, 0.16, 0.16, 0.14, 0.10], fs=9.5)
     dk.guardar(fig, png)
     return v
 
 
 def dia_tipo(dk, esc, png):
-    arch = sorted((RES / esc).glob("*_cuartos.csv.gz"))
+    arch = tramos(RES / esc, "_cuartos.csv.gz")
     if not arch:
         return
     det = pd.read_csv(arch[-1], index_col=0, parse_dates=True)
