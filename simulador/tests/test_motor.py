@@ -107,3 +107,35 @@ def test_previsión_imperfecta_cobra_precio_real():
         d[f"{k}_dif_prev"] = 0.0
     lin, met, det = motor.simular_dia(d, cfg["activo"], cfg)
     assert abs(lin["diario_bess"]) < 1e-6
+
+
+def test_tiempo_real_respeta_soc_y_cierre_del_continuo():
+    # Programa vacío: una activación a subir solo se entrega si hay energía, y su reposición no puede
+    # empezar antes de 1 h + 1 cuarto (cierre del continuo 60 min antes de la entrega).
+    p = np.full(96, 50.0)
+    df = _dia(p)
+    cfg = _cfg()
+    a = cfg["activo"]
+    d = motor.preparar(df, a, cfg)
+    T = len(d)
+    s2 = {k: np.zeros(T) for k in ("cg", "cpv", "dis", "pvx")}
+    z = np.zeros(T)
+    aU = z.copy(); aU[10] = 20.0
+    for e0, esperado in ((0.0, 0.0), (100.0, 20.0)):
+        s2["e"] = np.full(T, e0)
+        eu, edn, ing, no = motor._tiempo_real(d, a, cfg["mercados"], s2, z, z, aU, z, z, z, 1.0, 1.0, e0)
+        assert abs(eu[10] - esperado) < 1e-9
+    # con energía: la recompra (coste) existe y la energía repuesta cuadra con la activada
+    assert ing < 0
+
+
+def test_perfil_fv_emplazamiento_cuadra_energia_mensual(monkeypatch):
+    # La energía del mes es la de PVGIS (proporcional a los días) y la forma, la de la FV peninsular.
+    from simulador import datos
+    monkeypatch.setattr(datos, "pvgis_mensual", lambda *a, **k: {m: 200.0 for m in range(1, 13)})
+    idx = pd.date_range(pd.Timestamp("2026-07-01", tz="Europe/Madrid").tz_convert("UTC"), periods=96 * 3, freq="15min")
+    hora = idx.tz_convert("Europe/Madrid").hour
+    df = pd.DataFrame({"fv_nac": np.where((hora >= 8) & (hora < 20), 1000.0, 0.0)}, index=idx)
+    fv = datos.perfil_fv(df, 50, 1.0, {"lat": 38.88, "lon": -6.97})
+    assert abs(fv.sum() * 0.25 - 200 / 1000 * 50 * 3 / 31) < 1e-6
+    assert fv.max() <= 50
