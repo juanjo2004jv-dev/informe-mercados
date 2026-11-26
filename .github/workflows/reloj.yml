@@ -59,13 +59,19 @@ jobs:
         run: sleep ${{ steps.plan.outputs.espera }}
 
       - name: Lanzar el informe
+        # Reintentos: la API de GitHub devuelve a veces errores 5xx transitorios (HTTP 502 el 25-11-2026).
         if: steps.plan.outputs.lanza == 'si'
-        run: gh workflow run informe.yml -R "$REPO" && echo "Informe lanzado $(date -u '+%F %H:%M') UTC" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          for i in 1 2 3 4 5; do
+            gh workflow run informe.yml -R "$REPO" && { echo "Informe lanzado $(date -u '+%F %H:%M') UTC (intento $i)" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+            echo "Intento $i fallido; reintento en $((i * 30)) s"; sleep $((i * 30))
+          done
+          exit 1
 
       - name: Lanzar el simulador BESS del mes anterior (del día 6 al 20, hasta que salga)
         # Idempotente: solo lo lanza si faltan los resultados del mes anterior y no hay otro en marcha.
         # Si una ejecución falla, el siguiente despertar del reloj (4 al día) lo reintenta.
-        if: steps.plan.outputs.sim == 'si'
+        if: steps.plan.outputs.sim == 'si' && !cancelled()
         run: |
           DIA=$(date -u +%-d)
           if [ "$DIA" -lt 6 ] || [ "$DIA" -gt 20 ]; then echo "Simulador: fuera de la ventana (día $DIA)"; exit 0; fi
@@ -74,10 +80,18 @@ jobs:
           if gh api "repos/$REPO/contents/$F" --silent 2>/dev/null; then echo "Simulador: $DESDE ya simulado"; exit 0; fi
           ACT=$(gh run list -R "$REPO" -w simulador.yml --limit 20 --json status -q '[.[] | select(.status != "completed")] | length' || echo 0)
           if [ "${ACT:-0}" -gt 0 ]; then echo "Simulador: ya hay una ejecución en marcha"; exit 0; fi
-          gh workflow run simulador.yml -R "$REPO" -f accion=todo -f desde="$DESDE" -f hasta="$HASTA" -f escenarios="" \
-            && echo "Simulador lanzado para $DESDE..$HASTA ($(date -u '+%F %H:%M') UTC)" >> "$GITHUB_STEP_SUMMARY" || true
+          for i in 1 2 3 4 5; do
+            gh workflow run simulador.yml -R "$REPO" -f accion=todo -f desde="$DESDE" -f hasta="$HASTA" -f escenarios="" \
+              && { echo "Simulador lanzado para $DESDE..$HASTA ($(date -u '+%F %H:%M') UTC)" >> "$GITHUB_STEP_SUMMARY"; break; }
+            echo "Intento $i fallido; reintento en $((i * 30)) s"; sleep $((i * 30))
+          done
 
       - name: Relanzar el reloj
         # no si esta ejecución fue cancelada (otra la sustituyó): evita cadenas duplicadas
         if: success() || failure()
-        run: gh workflow run reloj.yml -R "$REPO"
+        run: |
+          for i in 1 2 3 4 5; do
+            gh workflow run reloj.yml -R "$REPO" && exit 0
+            echo "Intento $i fallido; reintento en $((i * 30)) s"; sleep $((i * 30))
+          done
+          exit 1
