@@ -171,3 +171,14 @@ def test_finanzas_tir_y_degradacion():
     assert abs(f["ingreso"].iloc[0] - (100000 * f["soh"].iloc[0] + 50000)) < 1e-6
     m = finanzas.metricas(capex, f, fz)
     assert m["tir_despues"] < m["tir_antes"] and m["lcos"] > 0
+
+
+def test_precio_gdo_por_mes():
+    import pandas as pd
+    from simulador import motor
+    g = {"desde": "2026-01", "precios": {"2026-01": 1.65, "2026-09": 1.58}}
+    ts = lambda s: pd.Timestamp(s, tz="Europe/Madrid").tz_convert("UTC")  # noqa: E731
+    assert motor.precio_gdo(ts("2025-12-15"), g) == 0.0          # antes de «desde»: sin GdO
+    assert motor.precio_gdo(ts("2026-01-01 00:00"), g) == 1.65   # mes local (no UTC)
+    assert motor.precio_gdo(ts("2026-05-10"), g) == 1.65         # sin precio del mes: último anterior conocido
+    assert motor.precio_gdo(ts("2026-11-10"), g) == 1.58
