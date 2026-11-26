@@ -137,5 +137,18 @@ def test_perfil_fv_emplazamiento_cuadra_energia_mensual(monkeypatch):
     hora = idx.tz_convert("Europe/Madrid").hour
     df = pd.DataFrame({"fv_nac": np.where((hora >= 8) & (hora < 20), 1000.0, 0.0)}, index=idx)
     fv = datos.perfil_fv(df, 50, 1.0, {"lat": 38.88, "lon": -6.97})
-    assert abs(fv.sum() * 0.25 - 200 / 1000 * 50 * 3 / 31) < 1e-6
+    assert abs(fv.sum() * 0.25 - 200 * 50 * 3 / 31) < 1e-3   # kWh/kWp = MWh/MWp
     assert fv.max() <= 50
+
+
+def test_pvgis_mensual_elige_montaje(tmp_path, monkeypatch):
+    # PVGIS con inclined_axis devuelve también "fixed": seguidor=True debe leer inclined_axis.
+    import json
+    from simulador import datos
+    monkeypatch.setattr(datos, "PVGIS", tmp_path)
+    j = {"outputs": {"monthly": {"fixed": [{"month": m, "E_m": 100.0} for m in range(1, 13)],
+                                 "inclined_axis": [{"month": m, "E_m": 150.0} for m in range(1, 13)]}}}
+    (tmp_path / "1.000_2.000_seguidor_14.json").write_text(json.dumps(j))
+    (tmp_path / "1.000_2.000_fijo_14.json").write_text(json.dumps(j))
+    assert datos.pvgis_mensual(1, 2, True, 14)[7] == 150.0
+    assert datos.pvgis_mensual(1, 2, False, 14)[7] == 100.0
