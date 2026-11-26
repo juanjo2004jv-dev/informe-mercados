@@ -167,7 +167,7 @@ def preparar(df, a, cfg):
     """Añade al DataFrame del periodo las columnas derivadas: FV, ratios de activación y topes."""
     from .datos import perfil_fv
     d = df.copy()
-    d["fv"] = perfil_fv(d, a.get("fv_mwp", 0), a.get("fv_ratio_dc_ac", 1.0)).values
+    d["fv"] = perfil_fv(d, a.get("fv_mwp", 0), a.get("fv_ratio_dc_ac", 1.0), a.get("emplazamiento")).values
     d["ratio_sub"] = (d["act_sub"] / d["banda_sub"].where(d["banda_sub"] > 0)).clip(0, 1).fillna(0)
     d["ratio_baj"] = (d["act_baj"] / d["banda_baj"].where(d["banda_baj"] > 0)).clip(0, 1).fillna(0)
     P = a["p_bess_mw"]
@@ -296,6 +296,13 @@ def simular_dia(d, a, cfg, e0=None):
         mD = np.where(~sub_dom & (d["m_baj"].abs().values > 0), mD, 0.0)
     else:
         mU = mD = 0 * bu
+    rep_fisica = m.get("reposicion_fisica", False)
+    if rep_fisica:
+        # Entregado = solicitado repartido entre aFRR y mFRR en proporción, si el SoC limita.
+        eu, edn, ingreso_rep, no_ent = _tiempo_real(d, a, m, s2, bu, bd, aU, aD, mU, mD, ec, ed, e0)
+        fu = np.divide(eu, aU + mU, out=np.zeros_like(eu), where=(aU + mU) > 0)
+        fd = np.divide(edn, aD + mD, out=np.zeros_like(edn), where=(aD + mD) > 0)
+        aU, mU, aD, mD = aU * fu, mU * fu, aD * fd, mD * fd
     lineas = {
         "diario_bess": float(np.sum(pda * (s1["dis"] - s1["cg"])) * DT),
         "diario_fv": float(np.sum(pda * s1["pvx"]) * DT),
@@ -304,7 +311,7 @@ def simular_dia(d, a, cfg, e0=None):
         "afrr_banda": float(np.sum(d["bp_sub"].values * bu + d["bp_baj"].values * bd) * DT),
         "afrr_activacion": float(np.sum(d["pe_sub"].values * aU - d["pe_baj"].values * aD) * DT),
         "mfrr": float(np.sum(pm * (mU - mD)) * DT),
-        "reposicion": float(np.sum(pc * ((aD + mD) * rt - (aU + mU) / rt)) * DT),
+        "reposicion": ingreso_rep if rep_fisica else float(np.sum(pc * ((aD + mD) * rt - (aU + mU) / rt)) * DT),
     }
     descarga = float(np.sum(s2["dis"]) * DT + np.sum(aU + mU) * DT)
     lineas["coste_ciclado"] = -kappa * descarga
@@ -322,11 +329,68 @@ def simular_dia(d, a, cfg, e0=None):
         "mwh_fv_vertida": float(np.sum(d["fv"].values - s1["pvx"] - s1["cpv"]) * DT),
         "ingreso_descarga": float(np.sum(pda * s2["dis"]) * DT),
         "banda_media_sub": float(np.mean(bu)), "banda_media_baj": float(np.mean(bd)),
+        "mwh_no_entregada": no_ent if rep_fisica else 0.0,
     }
     detalle = pd.DataFrame({k: v for k, v in s2.items()}, index=d.index)
     detalle["bu"], detalle["bd"], detalle["aU"], detalle["aD"], detalle["mU"], detalle["mD"] = bu, bd, aU, aD, mU, mD
     met["soc_final"] = float(s2["e"][-1])
     return lineas, met, detalle
+
+
+def _tiempo_real(d, a, m, s2, bu, bd, aU, aD, mU, mD, ec, ed, e0):
+    """Recorre el día cuarto a cuarto con las activaciones dentro del balance de energía (opción
+    `reposicion_fisica`). Es causal: en cada cuarto solo se conoce lo ocurrido hasta entonces.
+    - Las activaciones mueven el SoC respecto al programa; si no hay energía o hueco, se entrega lo posible
+      (lo no entregable no se cobra y se contabiliza).
+    - La desviación se repone en el continuo, que en España cierra 60 min antes de la entrega (excepción
+      aprobada por la CNMC hasta 2029): lo activado en el cuarto t se puede reponer desde t + 1 h + 15 min,
+      al precio de referencia del continuo del cuarto en que se entrega la reposición y con la potencia que
+      dejan libre el programa, la banda y las propias activaciones.
+    - Lo que quede sin reponer al final del día se liquida al precio del diario del último cuarto.
+    Devuelve las activaciones entregadas, el ingreso de reposición y la energía no entregada (MWh)."""
+    T = len(d)
+    P, E, POI = a["p_bess_mw"], a["e_bess_mwh"], a["p_poi_mw"]
+    PIMP = a["p_poi_import_mw"] if a["carga_desde_red"] else 0.0
+    retardo = int(round(m.get("reposicion_retardo_h", 1.0) / DT)) + 1
+    pcont = d["cont"].values
+    e_prog = s2["e"]
+    up, dn = (aU + mU).astype(float), (aD + mD).astype(float)
+    ent_up, ent_dn = np.zeros(T), np.zeros(T)
+    compra, venta = np.zeros(T), np.zeros(T)
+    dev_act = np.zeros(T)      # cambio de SoC causado por las activaciones de cada cuarto (MWh)
+    delta = 0.0                # SoC real − SoC programado (MWh)
+    repuesto = 0.0             # cambio de SoC acumulado por la reposición (MWh)
+    no_ent = 0.0
+    for t in range(T):
+        e_fin = e_prog[t] + delta                     # SoC al final del cuarto antes de activaciones/reposición
+        # reposición pendiente que ya se puede negociar (activaciones de hace ≥ 1 h + 1 cuarto)
+        pend = -(dev_act[: max(t - retardo + 1, 0)].sum() + repuesto)
+        neto = s2["pvx"][t] + s2["dis"][t] - s2["cg"][t]
+        x_c = x_v = 0.0
+        if pend > 1e-9:          # falta energía: comprar (cargar más o descargar menos)
+            lim_bat = P - s2["cg"][t] - s2["cpv"][t] - bd[t] + s2["dis"][t]
+            lim_red = neto + PIMP - bd[t] if a["carga_desde_red"] else neto - bd[t]
+            x_c = max(0.0, min(pend / (ec * DT), lim_bat, lim_red, (E - e_fin) / (ec * DT)))
+        elif pend < -1e-9:       # sobra energía: vender (descargar más o cargar menos)
+            lim_bat = P - s2["dis"][t] - bu[t] + s2["cg"][t]
+            lim_poi = POI - neto - bu[t]
+            x_v = max(0.0, min(-pend * ed / DT, lim_bat, lim_poi, e_fin * ed / DT))
+        compra[t], venta[t] = x_c, x_v
+        dr = (x_c * ec - x_v / ed) * DT
+        repuesto += dr
+        e_fin += dr
+        # activaciones del cuarto (limitadas por el SoC y por la potencia que deja la reposición)
+        u = min(up[t], max(e_fin, 0.0) * ed / DT, max(P - s2["dis"][t] - x_v + s2["cg"][t] + x_c, 0.0)) if up[t] > 0 else 0.0
+        v = min(dn[t], max(E - e_fin, 0.0) / (ec * DT)) if dn[t] > 0 else 0.0
+        no_ent += (up[t] - u + dn[t] - v) * DT
+        ent_up[t], ent_dn[t] = u, v
+        dev_act[t] = (v * ec - u / ed) * DT
+        delta += dr + dev_act[t]
+    ingreso = float(np.sum(pcont * (venta - compra)) * DT)
+    if abs(delta) > 1e-9:        # liquidación del resto al precio del diario del último cuarto
+        pf = d["da"].values[-1]
+        ingreso += pf * (delta * ed if delta > 0 else delta / ec)
+    return ent_up, ent_dn, ingreso, no_ent
 
 
 def simular(df, a, cfg, progreso=None):
