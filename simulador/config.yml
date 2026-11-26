@@ -93,3 +93,39 @@ profundidad:
 
 # Normalización de resultados
 normalizar_por: bess     # bess | poi
+
+# ---------------------------------------------------------------------------
+# Finanzas (finanzas.py): rentabilidad de los escenarios stand-alone. Euros nominales, por MW de BESS.
+# ---------------------------------------------------------------------------
+finanzas:
+  # CAPEX llave en mano: ACER, encuesta de recursos de generación 2030 (consulta PC-2026-E-04), España, Li-ion 4 h:
+  # 547 €/kW. Reparto potencia/energía de NREL (Cole, Ramasamy y Turan, 2025, NREL/TP-6A40-93281): $372/kW +
+  # $241/kWh, es decir, el 28 % del coste de un 4 h es de potencia. 152 + 4 × 98,75 = 547 €/kW.
+  # Contraste: BNEF 2025, llave en mano en Europa US$177/kWh; Capstone (nov-2025) 90-100 €/kWh instalado.
+  capex: {potencia_eur_kw: 152, energia_eur_kwh: 98.75}
+  opex_fijo_eur_kw_ano: 15     # ACER (misma encuesta), España, 4 h
+  vida_anos: 15                # ACER y NREL
+  wacc: 0.109                  # ACER, España, baterías (antes del impuesto de sociedades)
+  inflacion: 0.02              # SUPUESTO: objetivo del BCE, aplicado a ingresos y O&M
+  impuesto_sociedades: 0.25    # Ley 27/2014, art. 29; amortización lineal en la vida útil (SUPUESTO)
+  ivpee: 0.07                  # Ley 15/2012: 7 % del importe de la energía incorporada al sistema (aquí, ventas de la
+                               # descarga = MWh vertidos × precio medio de descarga). Doble imposición del
+                               # almacenamiento en debate: con ivpee 0 se ve el efecto.
+  peaje_generacion_eur_mwh: 0.5  # RD 1544/2011 (la energía que se repone está exenta de peajes de acceso: Circular CNMC 3/2020)
+  # Degradación LFP: 1 %/año de calendario + 3 % por cada 1.000 ciclos equivalentes (garantías de 10.000-12.000
+  # ciclos, DNV 2026; SUPUESTO fin de vida al 70 %). Contraste: BESS real de 3 años con 356 ciclos, 1,37 %/año
+  # (Politecnico di Torino, J. Energy Storage 2023); el modelo da 1,0 + 0,36 = 1,36 %/año con esos ciclos.
+  degradacion: {calendario_pct_ano: 1.0, ciclo_pct_por_1000_efc: 3.0}
+  referencia_4h: c_operable    # escenario con el que se traduce la previsión de Modo a un factor de mercado
+  trayectorias:
+    # base: el ingreso converge en 3 años (2028) a la previsión de Modo para un BESS stand-alone en España
+    # (152 k€/MW·año en 2028, versión de jul-2026; en oct-2026 el 4 h sube un 12 % en 2028 y el acumulado
+    # 2028-2045 queda plano) y desde ahí se mantiene plano en términos reales. SUPUESTO: se aplica a un 4 h.
+    base: {tipo: converge, objetivo_eur_mw_ano: 152000, anos: 3}
+    persistencia: {tipo: plana}              # se repite el año simulado (cota optimista)
+    # saturación: como la base y, desde 2028, −5 %/año real (SUPUESTO; Modo, abr-2026: servicios de ajuste e
+    # intradiario saturados para baterías en 2030 con 4,6 GW / 13,6 GWh)
+    saturacion: {tipo: converge, objetivo_eur_mw_ano: 152000, anos: 3, deriva_pct_ano: -0.05}
+  # Sensibilidad «compra del RtB»: precios de proyectos listos para construir de ~100 k€/MW (Modo, podcast
+  # Transmission con nTeaser, 2026). Por defecto 0: se evalúa al promotor que desarrolla el proyecto.
+  adquisicion_rtb_eur_kw: 0
