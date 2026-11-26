@@ -94,6 +94,18 @@ profundidad:
 # Normalización de resultados
 normalizar_por: bess     # bess | poi
 
+# Garantías de origen (solo escenarios con FV). Volumen: CNMC, resolución CNS/DE/1467/24 (30-4-2025): energía
+# inyectada en la frontera con la red menos la que el almacenamiento tomó de la red, ajustada por pérdidas.
+# Precio: subastas de GdO de OMIP (lotes solares), media de los lotes cuyo periodo de producción cubre el mes:
+# 36.ª (8-7-2026) mar-may 1,45; 37.ª (9-9-2026) ene-jul 1,65; 38.ª (11-11-2026) feb-sep 1,58 €/MWh.
+# Desde ene-2026 (sin precio público de 2025 a mano; UNEF añadió la GdO en feb-2026). Meses posteriores al
+# último publicado: último precio conocido (SUPUESTO).
+gdo:
+  activa: true
+  desde: "2026-01"
+  precios: {"2026-01": 1.65, "2026-02": 1.615, "2026-03": 1.56, "2026-04": 1.56, "2026-05": 1.56,
+            "2026-06": 1.615, "2026-07": 1.615, "2026-08": 1.58, "2026-09": 1.58}
+
 # ---------------------------------------------------------------------------
 # Finanzas (finanzas.py): rentabilidad de los escenarios stand-alone. Euros nominales, por MW de BESS.
 # ---------------------------------------------------------------------------
