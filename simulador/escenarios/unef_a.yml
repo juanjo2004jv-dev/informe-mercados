@@ -5,9 +5,12 @@ activo:
   e_bess_mwh: 200
   p_poi_mw: 50
   p_poi_import_mw: 0
-  fv_mwp: 50
+  fv_mwp: 65              # 50 MW de acceso con DC/AC 1,3: diseño de mínimo LCOE con seguidor en España
+  fv_ratio_dc_ac: 1.3     # (TFM Comillas, Higuera; TFG Comillas, Cortajarena: planta en Extremadura con 1,3)
   # UNEF usa un perfil FV real de Badajoz (acta del GT de 22-10-2026). Aproximación: energía mensual de PVGIS
   # en Badajoz con seguidor de un eje (SUPUESTO: UNEF no dice si es fijo o seguidor) y forma real peninsular.
+  # VERIFICADO 26-nov-2026 (8 puntos de validación de A y B): error medio absoluto 4,1 % con DC/AC 1,3 frente a
+  # 5,4 % con 1,0 (criterio fijado antes de comparar; no se ajusta ningún valor intermedio).
   emplazamiento: {lat: 38.879, lon: -6.970, seguidor: true, perdidas: 14}
   carga_desde_red: false
 normalizar_por: poi
