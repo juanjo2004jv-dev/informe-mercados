@@ -5,7 +5,9 @@
 #    (medido jul-sep 2026: −131 a +43 €/MW·mes), así que un operador racional no lo haría con esta previsión;
 #  - continuo en ventanas de 2 h con el precio de referencia (Modo, ME BESS ES);
 #  - ofertas de energía aFRR y mFRR a su coste de oportunidad (precio del diario del cuarto): PICASSO y MARI
-#    solo activan ofertas no peores que el marginal, así que no hay activaciones con pérdida.
+#    solo activan ofertas no peores que el marginal, así que no hay activaciones con pérdida;
+#  - activaciones dentro del balance de SoC (solo se entrega lo que la batería puede) y reposición causal
+#    en el continuo, que cierra 60 min antes de la entrega, al precio de cada cuarto en que se repone.
 # La captura (C operable ÷ C) mide cuánto se pierde por no conocer el futuro. Referencias: Modo aplica un
 # 80 % en mercados sin datos reales de flota; la mediana de ERCOT en 2025 fue del 70 % del techo en el diario.
 nombre: "C operable · sin conocer los precios del día"
@@ -23,5 +25,6 @@ mercados:
   intradiario: false
   continuo: true
   activacion_racional: true
+  reposicion_fisica: true
 profundidad:
   afrr_banda: {activa: false}
