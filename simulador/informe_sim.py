@@ -200,6 +200,90 @@ def dia_tipo(dk, esc, png):
     dk.guardar(fig, png)
 
 
+ALIAS = {"unef_a": "A", "unef_b": "B", "unef_c": "C", "modo_diario_4h": "Solo diario 4 h",
+         "bess_4h_realista": "Realista 4 h", "c_techo": "C techo", "c_operable": "C operable"}
+FUENTE_FIN = ("Fuentes: ACER, encuesta de recursos 2030 (PC-2026-E-04): CAPEX 547 €/kW (4 h), O&M 15 €/kW·año, WACC 10,9 %, "
+              "15 años; NREL/TP-6A40-93281 (reparto potencia/energía); Modo Energy (previsión 2028); DNV y Politecnico di "
+              "Torino (degradación); Ley 15/2012 (IVPEE), RD 1544/2011 (peaje), Ley 27/2014 (IS). Simulación propia con ESIOS (REE) y OMIE.")
+
+
+def _pct(x):
+    return "—" if pd.isna(x) else n(100 * x, 1) + " %"
+
+
+def rentabilidad(dk, png):
+    f = RES / "finanzas.csv"
+    if not f.exists():
+        return None
+    v = pd.read_csv(f)
+    b = v[v.trayectoria == "base"].sort_values(["horas", "ingreso_base"]).set_index("escenario")
+    otros = v.pivot(index="escenario", columns="trayectoria", values="tir_antes")
+    tab = pd.DataFrame({
+        "Escenario": [ALIAS.get(k, f"Barrido {n(b.loc[k, 'horas'])} h") for k in b.index],
+        "CAPEX\n(k€/MW)": [n(x / 1000) for x in b["capex"]],
+        "Ingreso base\n(k€/MW·año)": [n(x / 1000) for x in b["ingreso_base"]],
+        "TIR antes IS\nbase": [_pct(x) for x in b["tir_antes"]],
+        "TIR después IS\nbase": [_pct(x) for x in b["tir_despues"]],
+        "VAN al 10,9 %\n(k€/MW)": [n(x / 1000) for x in b["van"]],
+        "LCOS sin carga\n(€/MWh)": [n(x, 1) for x in b["lcos"]],
+        "Recuperación\n(años)": ["—" if pd.isna(x) else n(x) for x in b["payback"]],
+        "TIR antes IS\npersistencia": [_pct(otros.loc[k, "persistencia"]) for k in b.index],
+        "TIR antes IS\nsaturación": [_pct(otros.loc[k, "saturacion"]) for k in b.index]})
+    per = b["periodo_base"].iloc[0]
+    fig = dk.hoja("Rentabilidad de los escenarios stand-alone (por MW de BESS)",
+                  f"Año base {per}. Base: converge en 3 años a la previsión de Modo para 2028 (152 k€/MW·año en el 4 h operable; "
+                  "mismo factor para todos) y queda plana en real. Persistencia: se repite el año base. Saturación: base y −5 %/año "
+                  "desde 2028. Incluye degradación, O&M, IVPEE, peaje e IS; sin mecanismo de capacidad ni compra del proyecto.",
+                  fuente=FUENTE_FIN)
+    _tabla(fig, tab, (0.04, 0.10, 0.92, 0.64), ancho_col=[0.15] + [0.095] * 9, fs=9)
+    dk.guardar(fig, png)
+    return b
+
+
+def barrido(dk, b, png):
+    sel = b[[k.startswith("barrido") or k == "c_operable" for k in b.index]].sort_values("horas")
+    if len(sel) < 3:
+        return
+    fig = dk.hoja("Barrido de duración (operable, 50 MW)",
+                  "Barras: CAPEX e ingreso del año base por MW. Línea: TIR antes de impuestos (trayectoria base, eje derecho). "
+                  "CAPEX = 152 €/kW + 98,75 €/kWh × horas (ACER 2030 para el 4 h; reparto de NREL). Mismo mercado, misma previsión "
+                  "y mismas reglas en todas las duraciones; máximo 2 ciclos/día.", fuente=FUENTE_FIN)
+    ax = dk.eje(fig)
+    x = np.arange(len(sel))
+    ax.bar(x - 0.2, sel["capex"] / 1000, 0.4, color=C["panel"], edgecolor=C["linea"], label="CAPEX (k€/MW)")
+    ax.bar(x + 0.2, sel["ingreso_base"] / 1000, 0.4, color=C["verde"], label="Ingreso año base (k€/MW·año)")
+    ax.set_xticks(x, [n(h) + " h" for h in sel["horas"]])
+    ax.set_ylabel("k€/MW")
+    ax2 = ax.twinx()
+    ax2.plot(x, 100 * sel["tir_antes"], "o-", color=C["coral"], lw=2, label="TIR antes de IS (%)")
+    for xi, v in zip(x, sel["tir_antes"]):
+        ax2.text(xi, 100 * v + 0.8, _pct(v), ha="center", fontsize=9, color=C["coral"])
+    ax2.set_ylabel("TIR (%)")
+    ax2.set_ylim(0, max(100 * sel["tir_antes"].max() * 1.3, 10))
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, ncol=3, fontsize=9, frameon=False, loc="lower left", bbox_to_anchor=(0, 1.0))
+    dk.guardar(fig, png)
+
+
+def sensibilidad(dk, png):
+    f = RES / "finanzas_sensibilidad.csv"
+    if not f.exists():
+        return
+    s = pd.read_csv(f)
+    tab = pd.DataFrame({"Caso (C operable 4 h, trayectoria base)": s["caso"], "TIR antes de IS": s["tir_antes"].map(_pct),
+                        "TIR después de IS": s["tir_despues"].map(_pct), "VAN (k€/MW)": (s["van"] / 1000).map(n),
+                        "LCOS sin carga\n(€/MWh)": s["lcos"].map(lambda x: n(x, 1))})
+    rtb = s.loc[s["caso"].str.startswith("Compra"), "tir_antes"]
+    resta = n(100 * (s["tir_antes"].iloc[0] - rtb.iloc[0]), 1) if len(rtb) else "—"
+    fig = dk.hoja("Sensibilidad de la rentabilidad",
+                  "Un parámetro cada vez sobre el caso base. El CAPEX es la palanca principal; comprar un proyecto listo para "
+                  f"construir (~100 k€/MW) resta {resta} puntos de TIR. El mecanismo de capacidad (aprobado por la CE el "
+                  "29-5-2026, operativo hacia 2030-2031) no está incluido.", fuente=FUENTE_FIN)
+    _tabla(fig, tab, (0.10, 0.18, 0.80, 0.56), ancho_col=[0.36, 0.16, 0.16, 0.16, 0.16], fs=10.5)
+    dk.guardar(fig, png)
+
+
 def metodologia(dk):
     fig = dk.hoja("Metodología y supuestos")
     txt = [
@@ -215,15 +299,19 @@ def metodologia(dk):
         "SoC 0 a medianoche, el SoC debe cubrir 15 minutos de la banda ofrecida, sin degradación ni indisponibilidad.",
         "Coste de ciclado 4 €/MWh descargado (igual que UNEF) en la optimización; se informa aparte y no se resta del total.",
         "Híbridos: la FV y el BESS comparten el punto de conexión; sin carga de red, la batería solo carga de la FV. Perfil FV: "
-        "generación FV peninsular real (ESIOS 1295) normalizada por su máximo móvil de 30 días (supuesto).",
+        "generación FV peninsular real (ESIOS 1295) con la energía mensual de PVGIS 5.3 (JRC, SARAH3) en el emplazamiento "
+        "(A y B: Badajoz, seguidor de un eje, pérdidas 14 %).",
         "Banda aFRR: precio en €/MW por hora; precio-aceptante en la réplica de UNEF; con tope de profundidad (fórmula pública de "
         "Modo Energy) en los escenarios «realistas». Cuartohoraria cuando el precio publicado cambia dentro de la hora.",
         "Previsión imperfecta (C operable y realista): diario y banda con la media cuarto a cuarto de los 7 días anteriores "
         "(captura del arbitraje en el diario: 92,9 % en 2025 y 95,7 % en 2026, fuera de muestra); sin subastas intradiarias; "
         "continuo en ventanas de 2 h con el precio de referencia (ESIOS 1727), con tope = energía casada en el cuarto (1442) "
         "y 2 P; ofertas de energía aFRR y mFRR al precio del diario del cuarto (sin activaciones con pérdida).",
-        "Límites: sin IVPEE, peajes, GdO, restricciones técnicas, mecanismo de capacidad ni costes de O&M; las activaciones "
-        "se reponen en el continuo sin comprobar el SoC. Las cifras son referencias de optimización, no ingresos garantizados.",
+        "Tiempo real (C operable y realista): las activaciones se limitan al SoC disponible cuarto a cuarto y se reponen en el "
+        "continuo con 1 h y 1 cuarto de retraso (cierre 60 min antes de la entrega), al precio de cada cuarto.",
+        "Rentabilidad: CAPEX, O&M, WACC y vida de ACER (España, 2030); degradación LFP 1 %/año + 3 % por 1.000 ciclos; IVPEE 7 % "
+        "sobre las ventas de la descarga, peaje de generación 0,5 €/MWh e IS 25 %. Ingresos de mercado sin GdO, restricciones "
+        "técnicas ni mecanismo de capacidad. Las cifras son referencias de optimización, no ingresos garantizados.",
     ]
     y = 0.84
     for linea in txt:
@@ -269,6 +357,15 @@ def generar():
         barras_mensuales(dk, nombre, m, png)
         imgs.append((nombre, png.name))
     val = validacion(dk, SAL / "validacion.png")
+    from . import finanzas
+    try:
+        finanzas.calcular()
+    except Exception as ex:  # el informe de mercado no debe caer por la parte financiera
+        print(f"Aviso: finanzas no calculadas ({ex})")
+    fin = rentabilidad(dk, SAL / "rentabilidad.png")
+    if fin is not None:
+        barrido(dk, fin, SAL / "barrido.png")
+        sensibilidad(dk, SAL / "sensibilidad.png")
     esc_dia = "unef_c" if "unef_c" in res else next(iter(res))
     dia_tipo(dk, esc_dia, SAL / "dia.png")
     metodologia(dk)
@@ -276,6 +373,12 @@ def generar():
     # web
     filas_html = "".join(f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td></tr>" for r in filas)
     figs = "".join(f'<h2>{nm}</h2><img src="{im}" alt="{nm}">' for nm, im in imgs)
+    fin_html = ""
+    if fin is not None:
+        fin_html = '<h2>Rentabilidad (TIR, VAN, LCOS)</h2><img src="rentabilidad.png" alt="Rentabilidad">'
+        if (SAL / "barrido.png").exists():
+            fin_html += '<h2>Barrido de duración</h2><img src="barrido.png" alt="Barrido de duración">'
+        fin_html += '<h2>Sensibilidad</h2><img src="sensibilidad.png" alt="Sensibilidad">'
     html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Simulador de escenarios BESS</title><style>
 body{{font-family:system-ui,sans-serif;background:{C['fondo']};color:{C['tinta']};max-width:1100px;margin:auto;padding:1.5rem}}
@@ -288,8 +391,8 @@ th{{background:{C['verde']};color:white}}img{{width:100%;border:1px solid {C['li
 <p><a class="btn" href="simulador.pdf">Informe completo (PDF)</a> · <a href="../index.html">Radar semanal</a></p>
 <table><tr><th>Escenario</th><th>Total periodo (€/MW)</th><th>Anualizado (€/MW·año)</th><th>Ciclos/día</th><th>Precio medio de descarga (€/MWh)</th></tr>{filas_html}</table>
 {figs}<h2>Validación contra referencias públicas</h2><img src="validacion.png" alt="Validación">
-<h2>Un día de operación</h2><img src="dia.png" alt="Día tipo">
-<p style="font-size:.8rem;color:{C['gris']}">A, B, C, C techo y solo diario: previsión perfecta (cota superior). C operable y realista: deciden sin conocer los precios del día. No incluye IVPEE, peajes, GdO, restricciones técnicas ni O&amp;M.
+{fin_html}<h2>Un día de operación</h2><img src="dia.png" alt="Día tipo">
+<p style="font-size:.8rem;color:{C['gris']}">A, B, C, C techo y solo diario: previsión perfecta (cota superior). C operable y realista: deciden sin conocer los precios del día. Ingresos de mercado sin GdO, restricciones técnicas ni mecanismo de capacidad; la rentabilidad sí incluye CAPEX, O&amp;M, degradación, IVPEE, peaje de generación e IS.
 Fuente: ESIOS (REE) y OMIE. Elaboración propia.</p></body></html>"""
     (SAL / "index.html").write_text(html, encoding="utf-8")
     print(f"Informe del simulador: {dk.n} páginas en {SAL}")
