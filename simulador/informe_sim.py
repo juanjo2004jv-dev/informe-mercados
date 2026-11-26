@@ -27,6 +27,7 @@ C = dict(fondo="#F6F2EA", tinta="#1F2933", verde="#1E3D32", musgo="#5F8D4E", cor
          ciruela="#6B4A7A", mostaza="#C9972B", gris="#6B7280", panel="#E9E2D3", linea="#D8D0BE",
          azul="#2B6F8F", marron="#8C5A3C")
 LINEAS = {"diario_bess": ("Diario (BESS)", C["verde"]), "diario_fv": ("Diario (FV)", C["mostaza"]),
+          "gdo": ("GdO", "#B8A9C9"),
           "intradiario": ("Intradiario (IDA)", C["azul"]), "continuo": ("Continuo (MIC)", "#7FB3C8"),
           "afrr_banda": ("aFRR banda", C["coral"]),
           "afrr_activacion": ("aFRR activación", C["ciruela"]), "mfrr": ("mFRR", C["musgo"]),
@@ -310,8 +311,9 @@ def metodologia(dk):
         "Tiempo real (C operable y realista): las activaciones se limitan al SoC disponible cuarto a cuarto y se reponen en el "
         "continuo con 1 h y 1 cuarto de retraso (cierre 60 min antes de la entrega), al precio de cada cuarto.",
         "Rentabilidad: CAPEX, O&M, WACC y vida de ACER (España, 2030); degradación LFP 1 %/año + 3 % por 1.000 ciclos; IVPEE 7 % "
-        "sobre las ventas de la descarga, peaje de generación 0,5 €/MWh e IS 25 %. Ingresos de mercado sin GdO, restricciones "
-        "técnicas ni mecanismo de capacidad. Las cifras son referencias de optimización, no ingresos garantizados.",
+        "sobre las ventas de la descarga, peaje de generación 0,5 €/MWh e IS 25 %. Garantías de origen en los híbridos desde "
+        "ene-2026 (volumen: CNMC, CNS/DE/1467/24; precio: subastas solares de OMIP). Sin restricciones técnicas ni mecanismo de "
+        "capacidad. Las cifras son referencias de optimización, no ingresos garantizados.",
     ]
     y = 0.84
     for linea in txt:
@@ -348,26 +350,47 @@ def generar():
                       n(m["apuntamiento"].mean(), 0)])
     tab = pd.DataFrame(filas, columns=["Escenario", "Total periodo\n(€/MW)", "Anualizado\n(€/MW·año)", "Ciclos/día",
                                        "Precio medio\ndescarga (€/MWh)"])
+    from . import paginas as pg
+    pg.separador(dk, 1, "Escenarios y resumen", "Qué se simula, con qué mercados y cuánto ingresa cada configuración.")
     fig = dk.hoja("Resumen por escenario", f"Ingreso neto de mercado por MW (POI en híbridos, BESS en stand-alone), {periodo}.")
     _tabla(fig, tab, (0.06, 0.25, 0.88, 0.5), ancho_col=[0.44, 0.14, 0.15, 0.11, 0.16], fs=10.5)
     dk.guardar(fig, SAL / "resumen.png")
+    from . import paginas as pg
+    princ = [k for k in pg.PRINCIPALES if k in res]
+    if princ:
+        pg.escenarios(dk, princ, SAL / "escenarios.png")
+    pg.comparativa(dk, res, SAL / "comparativa.png")
     imgs = []
+    if princ:
+        pg.separador(dk, 2, "Resultados del último trimestre",
+                     "Ficha por escenario: resumen financiero, ingresos por mercado y contraste con el UNEF BESS Index.")
+        for clave in princ:
+            nombre, m = res[clave]
+            png = SAL / f"ficha_{clave}.png"
+            pg.ficha(dk, clave, nombre, m, png)
+            imgs.append((f"{nombre} · último trimestre", png.name))
+    pg.separador(dk, 3, "Evolución desde 2025", "Ingresos por mercado y mes, total anual, apuntamiento y ciclos diarios.")
     for clave, (nombre, m) in res.items():
         png = SAL / f"{clave}.png"
-        barras_mensuales(dk, nombre, m, png)
-        imgs.append((nombre, png.name))
+        pg.historico(dk, clave, nombre, m, png)
+        if clave in princ:
+            imgs.append((f"{nombre} · evolución", png.name))
+    pg.separador(dk, 4, "Validación", "Contraste con el UNEF BESS Index, Modo y Aurora, y un día de operación.")
     val = validacion(dk, SAL / "validacion.png")
+    esc_dia = "unef_c" if "unef_c" in res else next(iter(res))
+    dia_tipo(dk, esc_dia, SAL / "dia.png")
     from . import finanzas
     try:
         finanzas.calcular()
     except Exception as ex:  # el informe de mercado no debe caer por la parte financiera
         print(f"Aviso: finanzas no calculadas ({ex})")
+    if (RES / "finanzas.csv").exists():
+        pg.separador(dk, 5, "Rentabilidad", "TIR, VAN, LCOS, barrido de duración y sensibilidad (stand-alone).")
     fin = rentabilidad(dk, SAL / "rentabilidad.png")
     if fin is not None:
         barrido(dk, fin, SAL / "barrido.png")
         sensibilidad(dk, SAL / "sensibilidad.png")
-    esc_dia = "unef_c" if "unef_c" in res else next(iter(res))
-    dia_tipo(dk, esc_dia, SAL / "dia.png")
+    pg.separador(dk, 6, "Metodología")
     metodologia(dk)
     dk.pdf.close()
     # web
@@ -389,10 +412,11 @@ th{{background:{C['verde']};color:white}}img{{width:100%;border:1px solid {C['li
 </style></head><body><h1>Simulador de escenarios BESS</h1>
 <p>Ingreso neto de mercado de baterías en la península, {periodo}. Optimización con datos públicos de ESIOS (REE) y OMIE.</p>
 <p><a class="btn" href="simulador.pdf">Informe completo (PDF)</a> · <a href="../index.html">Radar semanal</a></p>
+<img src="escenarios.png" alt="Escenarios"><img src="comparativa.png" alt="Comparativa del trimestre">
 <table><tr><th>Escenario</th><th>Total periodo (€/MW)</th><th>Anualizado (€/MW·año)</th><th>Ciclos/día</th><th>Precio medio de descarga (€/MWh)</th></tr>{filas_html}</table>
 {figs}<h2>Validación contra referencias públicas</h2><img src="validacion.png" alt="Validación">
 {fin_html}<h2>Un día de operación</h2><img src="dia.png" alt="Día tipo">
-<p style="font-size:.8rem;color:{C['gris']}">A, B, C, C techo y solo diario: previsión perfecta (cota superior). C operable y realista: deciden sin conocer los precios del día. Ingresos de mercado sin GdO, restricciones técnicas ni mecanismo de capacidad; la rentabilidad sí incluye CAPEX, O&amp;M, degradación, IVPEE, peaje de generación e IS.
+<p style="font-size:.8rem;color:{C['gris']}">A, B, C, C techo y solo diario: previsión perfecta (cota superior). C operable y realista: deciden sin conocer los precios del día. Ingresos de mercado con GdO en los híbridos desde ene-2026, sin restricciones técnicas ni mecanismo de capacidad; la rentabilidad sí incluye CAPEX, O&amp;M, degradación, IVPEE, peaje de generación e IS.
 Fuente: ESIOS (REE) y OMIE. Elaboración propia.</p></body></html>"""
     (SAL / "index.html").write_text(html, encoding="utf-8")
     print(f"Informe del simulador: {dk.n} páginas en {SAL}")
