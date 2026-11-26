@@ -89,12 +89,12 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
     <a href="#metodo">Datos y método</a>
     <a href="../archivo.html">Semanas anteriores</a>
   </nav>
-  <div class="pie">Generado el 23/11/2026 07:19.<br>Fuente: ESIOS (REE) y OMIE.</div>
+  <div class="pie">Generado el 26/11/2026 07:19.<br>Fuente: ESIOS (REE) y OMIE.</div>
 </aside>
 
 <main>
 
-<p class="aviso"><strong>Edición provisional.</strong> Mercados, servicios de balance, mix y baterías están completos. La liquidación por tecnología y las restricciones técnicas (I3 de REE) del PDF son de la semana anterior: se sustituyen solas por las de esta semana cuando REE publica los siete días, entre el jueves y el viernes.</p>
+
 
 <dl class="cinta">
   <div><dt>Precio medio</dt><dd>91,0 <span class="sub">€/MWh</span></dd>
@@ -109,7 +109,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
   <div><dt>Spread de las baterías</dt><dd>110 <span class="sub">€/MWh</span></dd><span class="sub">baterías con medida en tiempo real</span></div>
 </dl>
 
-<p class="cta"><a class="pdfbtn" href="2026-S47.pdf">Descargar el informe completo en PDF · 65 páginas</a> <span class="sub" style="color:var(--muted);font-size:13px">edición provisional: I3 de la semana anterior, se actualiza solo</span></p>
+<p class="cta"><a class="pdfbtn" href="2026-S47.pdf">Descargar el informe completo en PDF · 65 páginas</a> <span class="sub" style="color:var(--muted);font-size:13px">incluye I3 por tecnología, restricciones técnicas y operación reforzada</span></p>
 
 <section id="calor">
   <h2>El precio medio cayó a 42,5 €/MWh a las 13:30 y subió a 179,6 €/MWh a las 18:45</h2>
@@ -195,7 +195,14 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
   <h2>Qué hicieron las baterías del sistema</h2>
   <p>Las baterías con medida propia publicada por REE en tiempo real cargaron 1.922 MWh y entregaron 1.689 MWh (rendimiento aparente 88 %). Cargaron de media a 45,3 €/MWh y descargaron a 155,6 €/MWh: un spread capturado de 110,3 €/MWh. Potencia máxima observada: 93 MW entregando y 99 MW cargando.</p>
   <div class="graf"><div id="g_bat"></div></div>
-  <p class="nota">La liquidación por mercado (I3) de las baterías se añade cuando REE la publica, entre el jueves y el viernes.</p>
+  
+  <div class="tabla-scroll"><table>
+    <thead><tr><th>Según la liquidación (I3)</th><th>Energía final (P48)</th><th>Importe</th><th>€/MWh</th></tr></thead>
+    <tbody>
+      <tr><td>Venta (almacenamiento generación)</td><td>197 MWh</td><td>30.313 €</td><td>153,7</td></tr>
+      <tr><td>Compra (almacenamiento consumo)</td><td>5.191 MWh</td><td>-205.419 €</td><td>39,6</td></tr>
+    </tbody></table></div>
+  <p class="nota">En el I3, «almacenamiento consumo» suma más energía que la que cargan las baterías en tiempo real; por eso no se resta compra de venta ni se da un resultado neto.</p>
   <p class="nota" style="margin-top:14px">Procedencia: tiempo real de REE (telemedida y estimación), indicadores 2166 (carga, en neto) y 2167 (entrega) de ESIOS, con los huecos de ESIOS completados con demanda.ree.es; valorado al precio del diario. No incluye el almacenamiento hibridado tras el contador de plantas renovables, así que no representa toda la potencia de baterías instalada. No es la liquidación: esa sale del I3.</p>
 </section>
 
@@ -209,7 +216,7 @@ figure.pag figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
 
 <section id="almacenamiento">
   <h2>Más para almacenamiento: servicios de balance, duración y renta de cada tecnología</h2>
-  <p>Lo que completa el arbitraje del diario: cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario, qué paga la banda de aFRR frente a arbitrar y cómo le fue a cada tecnología según la liquidación (I3) de la semana anterior, la última completa.</p>
+  <p>Lo que completa el arbitraje del diario: cuánto vale cada hora extra de duración, dónde cobra cada mercado respecto al diario, qué paga la banda de aFRR frente a arbitrar y cómo le va a cada tecnología según la liquidación (I3).</p>
   <figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/03.webp" alt="Señales de la semana para cada perfil" width="1333" height="750"><figcaption>Señales de la semana para cada perfil</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/06.webp" alt="Precio de la banda de aFRR" width="1333" height="750"><figcaption>Precio de la banda de aFRR</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/47.webp" alt="Curva de duración de precios" width="1333" height="750"><figcaption>Curva de duración de precios</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/48.webp" alt="Rango de precios de cada día" width="1333" height="750"><figcaption>Rango de precios de cada día</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/53.webp" alt="¿Cuánto vale cada hora de duración?" width="1333" height="750"><figcaption>¿Cuánto vale cada hora de duración?</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/51.webp" alt="Arbitraje: solo diario frente a diario + intradiarios" width="1333" height="750"><figcaption>Arbitraje: solo diario frente a diario + intradiarios</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/54.webp" alt="Arbitraje frente a reservar banda aFRR" width="1333" height="750"><figcaption>Arbitraje frente a reservar banda aFRR</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/55.webp" alt="Dónde paga más cada mercado respecto al diario, hora a hora" width="1333" height="750"><figcaption>Dónde paga más cada mercado respecto al diario, hora a hora</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/16.webp" alt="Precio capturado por tecnología y mercado" width="1333" height="750"><figcaption>Precio capturado por tecnología y mercado</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/21.webp" alt="Almacenamiento generación · energía e ingreso por mercado" width="1333" height="750"><figcaption>Almacenamiento generación · energía e ingreso por mercado</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/22.webp" alt="Almacenamiento generación · precio capturado" width="1333" height="750"><figcaption>Almacenamiento generación · precio capturado</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/23.webp" alt="Almacenamiento consumo · energía e ingreso por mercado" width="1333" height="750"><figcaption>Almacenamiento consumo · energía e ingreso por mercado</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/24.webp" alt="Almacenamiento consumo · precio capturado" width="1333" height="750"><figcaption>Almacenamiento consumo · precio capturado</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/57.webp" alt="Canibalización: cuánto del precio medio llega a cobrar cada tecnología" width="1333" height="750"><figcaption>Canibalización: cuánto del precio medio llega a cobrar cada tecnología</figcaption></figure><figure class="pag"><img loading="lazy" decoding="async" src="../paginas/2026-S47/58.webp" alt="Qué mueve el precio: la demanda residual" width="1333" height="750"><figcaption>Qué mueve el precio: la demanda residual</figcaption></figure>
 </section>
 
