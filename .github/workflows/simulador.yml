@@ -89,4 +89,12 @@ jobs:
           [ -d docs/simulador ] && git add docs/simulador
           git diff --staged --quiet && exit 0
           git commit -m "Simulador BESS: ${{ steps.p.outputs.accion }} ${{ steps.p.outputs.desde }}..${{ steps.p.outputs.hasta }}"
-          for i in 1 2 3; do git pull --rebase --autostash && git push && break; sleep 10; done
+          # Otra ejecución puede haber subido antes: se rebasa dando prioridad a lo recién generado (en un rebase,
+          # -X theirs es el commit propio; PDF, PNG y tablas se regeneran con todos los resultados) y, si al final
+          # no se ha podido subir, el paso falla en vez de perder los resultados en silencio.
+          for i in 1 2 3 4 5; do
+            if git pull --rebase -X theirs --autostash && git push; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 15))
+          done
+          echo "::error::No se han podido subir los resultados tras 5 intentos"; exit 1
