@@ -7,7 +7,8 @@
   "pe_sub: 2.06% de cuartos sin dato; se rellenan con el último valor.",
   "pe_baj: 2.06% de cuartos sin dato; se rellenan con el último valor.",
   "banda_sub: 0.16% de cuartos sin dato; se rellenan con el último valor.",
-  "banda_baj: 0.16% de cuartos sin dato; se rellenan con el último valor."
+  "banda_baj: 0.16% de cuartos sin dato; se rellenan con el último valor.",
+  "Subastas intradiarias sin reoptimizar por infactibilidad numérica: 1 (se mantiene el programa previo)."
  ],
- "generado": "2026-11-23T18:59:16Z"
+ "generado": "2026-11-26T19:05:56Z"
 }
