@@ -240,7 +240,11 @@ def pvgis_mensual(lat, lon, seguidor=True, perdidas=14.0):
         f.write_text(r.text, encoding="utf-8")
     j = json.loads(f.read_text(encoding="utf-8"))
     mens = j["outputs"]["monthly"]
-    filas = next(iter(mens.values())) if isinstance(mens, dict) else mens
+    # Con inclined_axis PVGIS devuelve también un bloque "fixed" (horizontal): hay que coger el del montaje pedido.
+    if isinstance(mens, dict):
+        filas = mens["inclined_axis"] if seguidor else mens["fixed"]
+    else:
+        filas = mens
     return {int(x["month"]): float(x["E_m"]) for x in filas}
 
 
@@ -269,10 +273,18 @@ def perfil_fv(df, fv_mwp, ratio_dc_ac=1.0, emplazamiento=None):
         anio, mes = divmod(int(k), 100)
         dias_mes = pd.Period(year=anio, month=mes, freq="M").days_in_month
         dias = len(np.unique(loc[mk].normalize()))
-        objetivo = em[mes] / 1000.0 * fv_mwp * dias / dias_mes          # MWh del emplazamiento en esos días
-        base = float(s[mk].sum() * 0.25)
-        if base > 0:
-            out[mk] = s[mk] * objetivo / base
+        objetivo = em[mes] * fv_mwp * dias / dias_mes     # kWh/kWp = MWh/MWp -> MWh en esos días
+        sk = s[mk]
+        if float(sk.sum()) <= 0:
+            continue
+        f = objetivo / float(sk.sum() * 0.25)
+        for _ in range(20):   # reescala tras recortar al techo AC para conservar la energía de PVGIS
+            v = (sk * f).clip(upper=techo)
+            e = float(v.sum() * 0.25)
+            if e <= 0 or abs(e - objetivo) < 1e-6 * objetivo:
+                break
+            f *= objetivo / e
+        out[mk] = v
     return out.clip(upper=techo)
 
 
