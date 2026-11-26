@@ -199,6 +199,19 @@ def preparar(df, a, cfg):
     return d
 
 
+def precio_gdo(ts, g):
+    """€/MWh de la GdO del mes de producción de `ts` (config.yml, gdo.precios). Antes de `desde`, 0; después del
+    último mes publicado, el último precio conocido (SUPUESTO)."""
+    mes = ts.tz_convert("Europe/Madrid").strftime("%Y-%m")
+    if mes < g.get("desde", "0000-00"):
+        return 0.0
+    precios = g.get("precios", {})
+    if mes in precios:
+        return float(precios[mes])
+    anteriores = [k for k in precios if k <= mes]
+    return float(precios[max(anteriores)]) if anteriores else 0.0
+
+
 def simular_dia(d, a, cfg, e0=None):
     m = cfg["mercados"]
     ec, ed = a["eta_carga"], a["eta_descarga"]
@@ -313,6 +326,14 @@ def simular_dia(d, a, cfg, e0=None):
         "mfrr": float(np.sum(pm * (mU - mD)) * DT),
         "reposicion": ingreso_rep if rep_fisica else float(np.sum(pc * ((aD + mD) * rt - (aU + mU) / rt)) * DT),
     }
+    g = cfg.get("gdo", {})
+    mwh_gdo = 0.0
+    if g.get("activa", False) and a.get("fv_mwp", 0):
+        # GdO (CNMC, CNS/DE/1467/24, 30-4-2025): energía neta inyectada en la frontera con la red, menos la que el
+        # almacenamiento tomó de la red ajustada por pérdidas; lo perdido en el almacenamiento no da GdO.
+        mwh_gdo = float(np.sum(s2["pvx"] + s2["dis"]) * DT - np.sum(s2["cg"]) * DT * rt)
+        mwh_gdo = max(mwh_gdo, 0.0)
+        lineas["gdo"] = precio_gdo(d.index[0], g) * mwh_gdo
     descarga = float(np.sum(s2["dis"]) * DT + np.sum(aU + mU) * DT)
     lineas["coste_ciclado"] = -kappa * descarga
     iv = m.get("ivpee", 0.0)
@@ -330,6 +351,7 @@ def simular_dia(d, a, cfg, e0=None):
         "ingreso_descarga": float(np.sum(pda * s2["dis"]) * DT),
         "banda_media_sub": float(np.mean(bu)), "banda_media_baj": float(np.mean(bd)),
         "mwh_no_entregada": no_ent if rep_fisica else 0.0,
+        "mwh_gdo": mwh_gdo,
     }
     detalle = pd.DataFrame({k: v for k, v in s2.items()}, index=d.index)
     detalle["bu"], detalle["bd"], detalle["aU"], detalle["aD"], detalle["mU"], detalle["mD"] = bu, bd, aU, aD, mU, mD
