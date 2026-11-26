@@ -74,6 +74,8 @@ mercados:
   continuo_ventana_h: 2  # ventana de previsión perfecta en tiempo real (Modo, ME BESS ES: ventanas móviles de 2 h)
   continuo_cuota: 1.0    # tope de volumen = cuota × energía casada en el continuo en el cuarto (ESIOS 1442), y nunca > 2 P (Modo)
   activacion_racional: false   # true: oferta de energía aFRR a su coste de oportunidad; sin activaciones con pérdida
+  reposicion_fisica: false     # true: activaciones dentro del balance de SoC y reposición causal en el continuo
+  reposicion_retardo_h: 1.0    # el continuo cierra 60 min antes de la entrega (excepción aprobada por la CNMC hasta 2029)
 
 # Previsión con la que se DECIDE (siempre se cobra el precio publicado).
 #   perfecta: conoce los precios del día (cota superior, como UNEF y Modo).
