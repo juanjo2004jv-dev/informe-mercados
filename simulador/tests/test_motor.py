@@ -152,3 +152,22 @@ def test_pvgis_mensual_elige_montaje(tmp_path, monkeypatch):
     (tmp_path / "1.000_2.000_fijo_14.json").write_text(json.dumps(j))
     assert datos.pvgis_mensual(1, 2, True, 14)[7] == 150.0
     assert datos.pvgis_mensual(1, 2, False, 14)[7] == 100.0
+
+
+def test_finanzas_tir_y_degradacion():
+    from simulador import finanzas
+    # TIR conocida: −100 y +110 a un año = 10 %
+    assert abs(finanzas.tir([-100, 110]) - 0.10) < 1e-6
+    fz = {"vida_anos": 15, "inflacion": 0.0, "capex": {"potencia_eur_kw": 152, "energia_eur_kwh": 98.75},
+          "opex_fijo_eur_kw_ano": 15, "wacc": 0.109, "impuesto_sociedades": 0.25, "ivpee": 0.0,
+          "peaje_generacion_eur_mwh": 0.0, "degradacion": {"calendario_pct_ano": 1.0, "ciclo_pct_por_1000_efc": 3.0},
+          "trayectorias": {"plana": {"tipo": "plana"}}}
+    anual = {"diario_bess": 100000.0, "afrr_banda": 50000.0, "ciclos_dia": 1.0, "apuntamiento": 100.0}
+    capex, f = finanzas.proyectar(anual, 4, fz, "plana")
+    assert capex == 547000.0
+    # SOH: 1 %/año + 3 % × 365/1000 = 2,095 %/año; año 1 a mitad de periodo
+    assert abs(f["soh"].iloc[0] - (1 - 0.02095 / 2)) < 1e-9
+    # la banda (potencia) no se degrada; el diario sí
+    assert abs(f["ingreso"].iloc[0] - (100000 * f["soh"].iloc[0] + 50000)) < 1e-6
+    m = finanzas.metricas(capex, f, fz)
+    assert m["tir_despues"] < m["tir_antes"] and m["lcos"] > 0
