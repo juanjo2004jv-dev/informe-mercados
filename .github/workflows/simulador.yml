@@ -36,7 +36,11 @@ jobs:
       PYTHONUNBUFFERED: "1"
     timeout-minutes: 180
     steps:
+      # ref: main -> el estado de la rama al EMPEZAR (no el del momento en que se encoló): una ejecución que esperó
+      # en la cola ve los resultados que hayan subido las anteriores.
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
