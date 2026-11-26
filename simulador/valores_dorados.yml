@@ -3,22 +3,22 @@
 # Las líneas de UNEF se mapean a las nuestras así:
 #   Mercado Diario (BESS) -> diario_bess · Mercado Diario (PV) -> diario_fv · aFRR Capacity -> afrr_banda
 #   aFRR Activation -> afrr_activacion · Intradiario (UP) -> intradiario · mFRR (activación) -> mfrr
-#   Continuo (reposición) -> reposicion
+#   Continuo (reposición) -> reposicion · Apuntamiento del activo (€/MWh, fichas de cada escenario) -> apuntamiento
 # gdo_derivado: total − suma de partidas publicadas. UNEF dibuja GdO en la leyenda pero no lo tabula;
 #   la diferencia (370-600 €/MW) es atribuible a GdO. DEDUCIDO, no publicado.
 unef:
   unef_c:
-    2026-07: {total: 21333, diario_bess: 13432, afrr_banda: 4457, afrr_activacion: 4947, intradiario: 352, mfrr: 1631, reposicion: -3487}
-    2026-08: {total: 25742, diario_bess: 18786, afrr_banda: 6130, afrr_activacion: 5557, intradiario: 391, mfrr: -936, reposicion: -4187}
-    2026-09: {total: 30807, diario_bess: 22224, afrr_banda: 6561, afrr_activacion: 548, intradiario: 607, mfrr: 2708, reposicion: -1841}
+    2026-07: {total: 21333, diario_bess: 13432, afrr_banda: 4457, afrr_activacion: 4947, intradiario: 352, mfrr: 1631, reposicion: -3487, apuntamiento: 130}
+    2026-08: {total: 25742, diario_bess: 18786, afrr_banda: 6130, afrr_activacion: 5557, intradiario: 391, mfrr: -936, reposicion: -4187, apuntamiento: 152}
+    2026-09: {total: 30807, diario_bess: 22224, afrr_banda: 6561, afrr_activacion: 548, intradiario: 607, mfrr: 2708, reposicion: -1841, apuntamiento: 203}
   unef_a:
-    2026-07: {total: 35046, diario_bess: 18353, diario_fv: 11852, afrr_banda: 2709, afrr_activacion: 5048, intradiario: 214, mfrr: -150, reposicion: -3580, gdo_derivado: 600}
-    2026-08: {total: 38356, diario_bess: 21453, diario_fv: 10515, afrr_banda: 4112, afrr_activacion: 6457, intradiario: 212, mfrr: -1211, reposicion: -3713, gdo_derivado: 531}
-    2026-09: {total: 37056, diario_bess: 23600, diario_fv: 7330, afrr_banda: 5042, afrr_activacion: 1435, intradiario: 221, mfrr: 1341, reposicion: -2305, gdo_derivado: 392}
+    2026-07: {total: 35046, diario_bess: 18353, diario_fv: 11852, afrr_banda: 2709, afrr_activacion: 5048, intradiario: 214, mfrr: -150, reposicion: -3580, gdo_derivado: 600, apuntamiento: 123}
+    2026-08: {total: 38356, diario_bess: 21453, diario_fv: 10515, afrr_banda: 4112, afrr_activacion: 6457, intradiario: 212, mfrr: -1211, reposicion: -3713, gdo_derivado: 531, apuntamiento: 146}
+    2026-09: {total: 37056, diario_bess: 23600, diario_fv: 7330, afrr_banda: 5042, afrr_activacion: 1435, intradiario: 221, mfrr: 1341, reposicion: -2305, gdo_derivado: 392, apuntamiento: 215}
   unef_b:
-    2026-07: {total: 37485, diario_bess: 17897, diario_fv: 12111, afrr_banda: 3489, afrr_activacion: 4305, intradiario: 303, mfrr: 62, reposicion: -1251, gdo_derivado: 569}
-    2026-08: {total: 40044, diario_bess: 20852, diario_fv: 11105, afrr_banda: 5129, afrr_activacion: 4658, intradiario: 422, mfrr: -638, reposicion: -1987, gdo_derivado: 503}
-    2026-09: {total: 42135, diario_bess: 25185, diario_fv: 8938, afrr_banda: 6028, afrr_activacion: 170, intradiario: 569, mfrr: 1569, reposicion: -691, gdo_derivado: 367}
+    2026-07: {total: 37485, diario_bess: 17897, diario_fv: 12111, afrr_banda: 3489, afrr_activacion: 4305, intradiario: 303, mfrr: 62, reposicion: -1251, gdo_derivado: 569, apuntamiento: 127}
+    2026-08: {total: 40044, diario_bess: 20852, diario_fv: 11105, afrr_banda: 5129, afrr_activacion: 4658, intradiario: 422, mfrr: -638, reposicion: -1987, gdo_derivado: 503, apuntamiento: 141}
+    2026-09: {total: 42135, diario_bess: 25185, diario_fv: 8938, afrr_banda: 6028, afrr_activacion: 170, intradiario: 569, mfrr: 1569, reposicion: -691, gdo_derivado: 367, apuntamiento: 191}
 tolerancia_total: 0.10
 # Totales anuales (€/MW·año). UNEF: serie histórica del acta (2025). Modo: metodología ME vBESS ES v0.5,
 # validación del sub-índice de diario 4 h (≈ 129 k€/MW en 2025). Tolerancias propias de cada referencia.
