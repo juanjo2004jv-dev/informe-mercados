@@ -6,6 +6,9 @@ activo:
   p_poi_mw: 50
   p_poi_import_mw: 50
   fv_mwp: 50
+  # UNEF usa un perfil FV real de Badajoz (acta del GT de 22-10-2026). Aproximación: energía mensual de PVGIS
+  # en Badajoz con seguidor de un eje (SUPUESTO: UNEF no dice si es fijo o seguidor) y forma real peninsular.
+  emplazamiento: {lat: 38.879, lon: -6.970, seguidor: true, perdidas: 14}
   carga_desde_red: true
 normalizar_por: poi
 # Banda aFRR precio-aceptante (sin tope de profundidad): con el tope de Modo la banda sale al 35-45 % de
