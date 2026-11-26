@@ -16,3 +16,4 @@ mercados:
   intradiario: false
   continuo: true
   activacion_racional: true
+  reposicion_fisica: true
