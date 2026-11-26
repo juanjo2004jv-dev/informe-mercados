@@ -17,7 +17,8 @@ from . import datos, motor
 
 RAIZ = Path(__file__).resolve().parent.parent
 RES = RAIZ / "data" / "simulador" / "resultados"
-LINEAS = ["diario_bess", "diario_fv", "intradiario", "continuo", "afrr_banda", "afrr_activacion", "mfrr", "reposicion"]
+LINEAS = ["diario_bess", "diario_fv", "intradiario", "continuo", "afrr_banda", "afrr_activacion", "mfrr", "reposicion",
+          "gdo"]
 
 
 def _fusion(base, extra):
@@ -111,8 +112,8 @@ def cmd_validar(a):
             if mes not in nos.index:
                 continue
             fila = {"escenario": esc, "mes": mes}
-            for k in ["total"] + LINEAS:
-                if k in r:
+            for k in ["total"] + LINEAS + ["apuntamiento"]:
+                if k in r and k in nos:
                     fila[f"{k} UNEF"] = r[k]
                     fila[f"{k} nuestro"] = round(float(nos.loc[mes, k]))
             desv = fila["total nuestro"] / r["total"] - 1
