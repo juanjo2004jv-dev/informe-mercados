@@ -220,16 +220,60 @@ def completar(df, cfg):
     return df, av
 
 
-def perfil_fv(df, fv_mwp, ratio_dc_ac=1.0):
-    """Perfil FV (MW AC) a partir de la FV peninsular real de ESIOS (1295), normalizada por su máximo
-    móvil de 30 días. SUPUESTO: el perfil nacional representa la forma diaria de una planta en el sur
-    (más ancho que un emplazamiento real). Se sustituirá por PVGIS o una curva propia."""
+PVGIS = RAIZ / "data" / "simulador" / "pvgis"
+
+
+def pvgis_mensual(lat, lon, seguidor=True, perdidas=14.0):
+    """Producción mensual media (kWh/kWp) de un emplazamiento según PVGIS 5.3 (JRC, base SARAH3).
+    seguidor=True: seguidor de un eje horizontal norte-sur (eje inclinado 0°); False: fijo con ángulos óptimos.
+    Se guarda en data/simulador/pvgis/ para no repetir la consulta (y para poder simular sin red)."""
+    import json
+    tipo = "seguidor" if seguidor else "fijo"
+    f = PVGIS / f"{lat:.3f}_{lon:.3f}_{tipo}_{perdidas:g}.json"
+    if not f.exists():
+        par = {"lat": lat, "lon": lon, "peakpower": 1, "loss": perdidas, "outputformat": "json",
+               "raddatabase": "PVGIS-SARAH3"}
+        par.update({"inclined_axis": 1, "inclinedaxisangle": 0} if seguidor else {"optimalangles": 1})
+        r = requests.get("https://re.jrc.ec.europa.eu/api/v5_3/PVcalc", params=par, timeout=60)
+        r.raise_for_status()
+        PVGIS.mkdir(parents=True, exist_ok=True)
+        f.write_text(r.text, encoding="utf-8")
+    j = json.loads(f.read_text(encoding="utf-8"))
+    mens = j["outputs"]["monthly"]
+    filas = next(iter(mens.values())) if isinstance(mens, dict) else mens
+    return {int(x["month"]): float(x["E_m"]) for x in filas}
+
+
+def perfil_fv(df, fv_mwp, ratio_dc_ac=1.0, emplazamiento=None):
+    """Perfil FV (MW AC).
+    - Sin emplazamiento: FV peninsular real de ESIOS (1295) normalizada por su máximo móvil de 30 días
+      (SUPUESTO: la forma nacional representa una planta del sur).
+    - Con emplazamiento {lat, lon, seguidor, perdidas}: la forma cuarto a cuarto y la variabilidad diaria son
+      las de la FV peninsular real (que es la que mueve los precios), y la energía de cada mes es la de PVGIS
+      para ese emplazamiento (kWh/kWp del mes medio, proporcional a los días simulados)."""
     if not fv_mwp:
         return pd.Series(0.0, index=df.index)
     s = df["fv_nac"].clip(lower=0).fillna(0)
-    ref = s.rolling("30D", center=True, min_periods=96).max().replace(0, np.nan).bfill().ffill()
-    pu = (s / ref).clip(0, 1).fillna(0)
-    return (pu * fv_mwp).clip(upper=fv_mwp / ratio_dc_ac)
+    techo = fv_mwp / ratio_dc_ac
+    if not emplazamiento:
+        ref = s.rolling("30D", center=True, min_periods=96).max().replace(0, np.nan).bfill().ffill()
+        pu = (s / ref).clip(0, 1).fillna(0)
+        return (pu * fv_mwp).clip(upper=techo)
+    em = pvgis_mensual(emplazamiento["lat"], emplazamiento["lon"], emplazamiento.get("seguidor", True),
+                       emplazamiento.get("perdidas", 14.0))
+    loc = s.index.tz_convert("Europe/Madrid")
+    clave = loc.year * 100 + loc.month
+    out = pd.Series(0.0, index=s.index)
+    for k in np.unique(clave):
+        mk = clave == k
+        anio, mes = divmod(int(k), 100)
+        dias_mes = pd.Period(year=anio, month=mes, freq="M").days_in_month
+        dias = len(np.unique(loc[mk].normalize()))
+        objetivo = em[mes] / 1000.0 * fv_mwp * dias / dias_mes          # MWh del emplazamiento en esos días
+        base = float(s[mk].sum() * 0.25)
+        if base > 0:
+            out[mk] = s[mk] * objetivo / base
+    return out.clip(upper=techo)
 
 
 def tramos(carpeta, sufijo="_mensual_eur_mw.csv"):
