@@ -1,0 +1,9 @@
+{
+ "escenario": "Barrido · 8 h (operable, 50 MW / 400 MWh)",
+ "avisos": [
+  "Continuo sin precio en 388 cuartos: se usa el diario.",
+  "pe_sub: 1.07% de cuartos sin dato; se rellenan con el último valor.",
+  "pe_baj: 1.07% de cuartos sin dato; se rellenan con el último valor."
+ ],
+ "generado": "2026-11-26T19:40:40Z"
+}
