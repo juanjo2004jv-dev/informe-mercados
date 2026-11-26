@@ -1,0 +1,36 @@
+{
+ "capex": {
+  "potencia_eur_kw": 152,
+  "energia_eur_kwh": 98.75
+ },
+ "opex_fijo_eur_kw_ano": 15,
+ "vida_anos": 15,
+ "wacc": 0.109,
+ "inflacion": 0.02,
+ "impuesto_sociedades": 0.25,
+ "ivpee": 0.07,
+ "peaje_generacion_eur_mwh": 0.5,
+ "degradacion": {
+  "calendario_pct_ano": 1.0,
+  "ciclo_pct_por_1000_efc": 3.0
+ },
+ "referencia_4h": "c_operable",
+ "trayectorias": {
+  "base": {
+   "tipo": "converge",
+   "objetivo_eur_mw_ano": 152000,
+   "anos": 3
+  },
+  "persistencia": {
+   "tipo": "plana"
+  },
+  "saturacion": {
+   "tipo": "converge",
+   "objetivo_eur_mw_ano": 152000,
+   "anos": 3,
+   "deriva_pct_ano": -0.05
+  }
+ },
+ "adquisicion_rtb_eur_kw": 0,
+ "factor_objetivo": 0.7280286230200733
+}
